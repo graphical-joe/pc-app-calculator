@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PC App Calculator</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            agri: {
+              50: '#f4fbf6',
+              100: '#e3f5ea',
+              600: '#16a34a',
+              700: '#15803d',
+              900: '#14532d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-24">
+
+  <!-- Application Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100">
+          <i data-lucide="calculator" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-extrabold tracking-tight text-slate-900">PC App Calculator</h1>
+        </div>
+      </div>
+      <div id="header-actions"></div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-5xl mx-auto px-4 py-8">
+
+    <!-- Active Tracker (Starts hidden if no project) -->
+    <div id="project-dashboard" class="hidden space-y-6">
+      
+      <!-- Top Overview Stats Grid -->
+      <div class="grid grid-cols-3 gap-1.5 sm:gap-4">
+        
+        <div class="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm flex items-center sm:items-start gap-1.5 sm:gap-4">
+          <div class="p-1.5 sm:p-3 bg-slate-50 text-slate-500 rounded-lg sm:rounded-xl border border-slate-100 shrink-0">
+            <i data-lucide="target" class="w-3.5 h-3.5 sm:w-5 sm:h-5"></i>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Target</p>
+            <p class="text-xs sm:text-2xl font-bold font-mono text-slate-800 mt-0.5 truncate" id="stat-target-limit">0</p>
+          </div>
+        </div>
+
+        <div class="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm flex items-center sm:items-start gap-1.5 sm:gap-4">
+          <div class="p-1.5 sm:p-3 bg-amber-50 text-amber-600 rounded-lg sm:rounded-xl border border-amber-100 shrink-0">
+            <i data-lucide="container" class="w-3.5 h-3.5 sm:w-5 sm:h-5"></i>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Bags</p>
+            <p class="text-xs sm:text-2xl font-bold font-mono text-slate-800 mt-0.5" id="stat-current-bags">0</p>
+          </div>
+        </div>
+
+        <div class="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-emerald-100 shadow-sm flex items-center sm:items-start gap-1.5 sm:gap-4 bg-emerald-50/20">
+          <div class="p-1.5 sm:p-3 bg-emerald-100 text-emerald-700 rounded-lg sm:rounded-xl border border-emerald-100 shrink-0">
+            <i data-lucide="scale" class="w-3.5 h-3.5 sm:w-5 sm:h-5"></i>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Total Qty</p>
+            <p class="text-xs sm:text-2xl font-black font-mono text-emerald-600 mt-0.5 truncate" id="stat-total-qty">0</p>
+          </div>
+        </div>
+        
+      </div>
+
+      <!-- Limit Progress Meter -->
+      <div class="bg-white p-2.5 sm:p-3.5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex justify-between items-center text-[10px] sm:text-xs font-medium text-slate-500 mb-1.5">
+          <span>Capacity Meter</span>
+          <span id="progress-bar-text" class="font-mono">0 / 0 (0%)</span>
+        </div>
+        <div class="w-full bg-slate-100 h-1 sm:h-1.5 rounded-full overflow-hidden">
+          <div id="progress-bar-fill" class="bg-emerald-600 h-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Interactive records container -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[300px] flex flex-col">
+        
+        <!-- Active compact area addition form directly above table headers -->
+        <div class="bg-slate-50 border-b border-slate-200 p-4">
+          <form id="record-form" class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div class="flex-1">
+              <input 
+                type="number" 
+                id="input-area" 
+                step="0.01" 
+                min="0.01" 
+                required 
+                placeholder="Enter farm area" 
+                class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-sm font-bold"
+              >
+            </div>
+
+            <!-- Live Yield Estimate Panel (Sleek Inline layout) -->
+            <div id="live-estimator" class="bg-white px-3 py-1.5 rounded-lg border border-dashed border-slate-200 hidden text-[11px] text-slate-600 flex items-center gap-4">
+              <div>
+                <span>Estimated Bags: </span>
+                <span class="font-mono font-bold text-slate-800" id="estim-calc-bags">0</span>
+              </div>
+              <div class="w-px h-3 bg-slate-200 hidden sm:block"></div>
+              <div>
+                <span>Allowed Bags: </span>
+                <span class="font-mono text-emerald-600 font-bold" id="estim-actual-bags">0</span>
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              class="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 text-xs cursor-pointer border border-emerald-700 shrink-0 select-none"
+            >
+              <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+              Add Record
+            </button>
+          </form>
+        </div>
+
+        <div id="table-empty-state" class="p-12 text-center text-slate-450 my-auto space-y-3">
+          <i data-lucide="table" class="w-8 h-8 text-slate-300 mx-auto"></i>
+          <p class="font-semibold text-slate-600 text-sm">No Records Added</p>
+          <p class="text-xs text-slate-400 max-w-xs mx-auto">Hectare calculations will populate when you submit records above.</p>
+        </div>
+
+        <!-- Table Wrapper -->
+        <div id="table-wrapper" class="overflow-x-auto hidden">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase text-slate-500 tracking-wider">
+                <th class="py-3 px-4 font-normal text-slate-400 w-12">#</th>
+                <th class="py-3 px-4">Area</th>
+                <th class="py-3 px-4 text-center">Bags</th>
+                <th class="py-3 px-4 text-right">Qty</th>
+                <th class="py-3 px-4 text-right">CF</th>
+                <th class="py-3 px-4 text-center w-16">Action</th>
+              </tr>
+            </thead>
+            <tbody id="records-tbody" class="divide-y divide-slate-100">
+              <!-- Dynamic rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- First interface: Setup screen (Very Clean: Shows PC App Calculator and enter target limit) -->
+    <div id="setup-screen" class="max-w-md mx-auto my-16 bg-white rounded-3xl border border-slate-200 p-8 shadow-lg space-y-6">
+      <div class="text-center space-y-2">
+        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mx-auto border border-emerald-100">
+          <i data-lucide="calculator" class="w-6 h-6"></i>
+        </div>
+        <h2 class="text-xl font-black text-slate-900 tracking-tight">PC App Calculator</h2>
+        <p class="text-xs text-slate-400">Cocoa Purchaser</p>
+      </div>
+
+      <form id="setup-form" class="space-y-4">
+        <div>
+          <label for="setup-limit" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Target Limit (Bags) *</label>
+          <div class="relative">
+            <input 
+              type="number" 
+              id="setup-limit" 
+              min="1" 
+              required 
+              value="500"
+              placeholder="e.g., 500" 
+              class="w-full pl-4 pr-16 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-base font-bold font-mono"
+            >
+            <span class="absolute right-4 top-3.5 text-xs font-semibold text-slate-400 uppercase">bags</span>
+          </div>
+        </div>
+
+        <button 
+          type="submit" 
+          class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+        >
+          <i data-lucide="play" class="w-4 h-4"></i>
+          Start Project
+        </button>
+      </form>
+    </div>
+
+  </main>
+
+  <!-- Sticky Pinned Total Widget -->
+  <div id="sticky-total-panel" class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-3.5 px-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] z-40 hidden">
+    <div class="max-w-5xl mx-auto w-full flex justify-center items-center">
+      <button onclick="resetProject()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer border border-emerald-700 select-none">
+        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        New Purchases
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let project = {"name":"PC App Calculator","targetLimit":150,"farmerName":"","createdAt":"2026-06-01T02:45:26.888Z","rawRecords":[{"id":"rec_1780281939949_wcdn","sectionName":"Record #1","area":2,"timestamp":"2026-06-01T02:45:39.949Z"},{"id":"rec_1780281959761_xc0c","sectionName":"Record #2","area":4,"timestamp":"2026-06-01T02:45:59.761Z"},{"id":"rec_1780281968224_c2i4","sectionName":"Record #3","area":5,"timestamp":"2026-06-01T02:46:08.224Z"},{"id":"rec_1780281972388_gu06","sectionName":"Record #4","area":5,"timestamp":"2026-06-01T02:46:12.388Z"},{"id":"rec_1780281980386_tjar","sectionName":"Record #5","area":5,"timestamp":"2026-06-01T02:46:20.386Z"}]};
+
+    const setupScreen = document.getElementById('setup-screen');
+    const projectDashboard = document.getElementById('project-dashboard');
+    const setupForm = document.getElementById('setup-form');
+    const recordForm = document.getElementById('record-form');
+    const recordsTbody = document.getElementById('records-tbody');
+    const tableEmptyState = document.getElementById('table-empty-state');
+    const tableWrapper = document.getElementById('table-wrapper');
+    const stickyPanel = document.getElementById('sticky-total-panel');
+
+    const inputArea = document.getElementById('input-area');
+    const liveEstimator = document.getElementById('live-estimator');
+    const estimCalcBags = document.getElementById('estim-calc-bags');
+    const estimActualBags = document.getElementById('estim-actual-bags');
+
+    window.addEventListener('load', () => {
+      const saved = localStorage.getItem('cocoa_farming_project');
+      if (saved) {
+        try {
+          project = JSON.parse(saved);
+        } catch(e) {}
+      }
+      render();
+      lucide.createIcons();
+    });
+
+    function computeAndRecalculate() {
+      if (!project) return;
+      let runningCumulative = 0;
+      
+      project.records = project.rawRecords.map((item, index) => {
+        const calculatedBags = Math.floor((item.area * 580) / 64);
+        const remainingAllowance = Math.max(0, project.targetLimit - runningCumulative);
+        const actualBags = Math.max(0, Math.min(calculatedBags, remainingAllowance));
+        runningCumulative += actualBags;
+        const qty = actualBags * 64;
+
+        return {
+          id: item.id,
+          sectionName: 'Record #' + (index + 1),
+          area: Number(item.area),
+          calculatedBags,
+          actualBags,
+          qty,
+          cumulativeBags: runningCumulative,
+          timestamp: item.timestamp
+        };
+      });
+
+      localStorage.setItem('cocoa_farming_project', JSON.stringify(project));
+    }
+
+    function handleLiveEstimation() {
+      if (!project) return;
+      const area = Number(inputArea.value);
+      if (!area || area <= 0) {
+        liveEstimator.classList.add('hidden');
+        return;
+      }
+
+      liveEstimator.classList.remove('hidden');
+      const calculatedBags = Math.floor((area * 580) / 64);
+      estimCalcBags.textContent = calculatedBags;
+
+      const totalBagsSoFar = project.records.reduce((sum, r) => sum + r.actualBags, 0);
+      const remainingAllowance = Math.max(0, project.targetLimit - totalBagsSoFar);
+      const actualBags = Math.max(0, Math.min(calculatedBags, remainingAllowance));
+
+      estimActualBags.textContent = actualBags;
+    }
+
+    inputArea.addEventListener('input', handleLiveEstimation);
+
+    setupForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const targetLimit = Number(document.getElementById('setup-limit').value);
+
+      project = {
+        id: 'proj_' + Date.now(),
+        name: 'PC App Calculator',
+        targetLimit,
+        farmerName: '',
+        createdAt: new Date().toISOString(),
+        rawRecords: [],
+        records: []
+      };
+
+      computeAndRecalculate();
+      render();
+    });
+
+    recordForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!project) return;
+
+      const area = Number(inputArea.value);
+      const newRawRecord = {
+        id: 'rec_' + Date.now(),
+        sectionName: '',
+        area,
+        timestamp: new Date().toISOString()
+      };
+
+      project.rawRecords.push(newRawRecord);
+      computeAndRecalculate();
+
+      inputArea.value = '';
+      liveEstimator.classList.add('hidden');
+      render();
+    });
+
+    window.deleteRecord = function(id) {
+      if (!project) return;
+      project.rawRecords = project.rawRecords.filter(r => r.id !== id);
+      computeAndRecalculate();
+      render();
+    };
+
+    window.resetProject = function() {
+      project = null;
+      localStorage.removeItem('cocoa_farming_project');
+      // Reset the setup limit field input back to 500 when returning to setup screen
+      const setupLimitInput = document.getElementById('setup-limit');
+      if (setupLimitInput) {
+        setupLimitInput.value = '500';
+      }
+      render();
+    };
+
+    window.addEventListener('scroll', () => {
+      if (!project) return;
+      if (window.scrollY > 80) {
+        stickyPanel.classList.remove('hidden');
+      } else {
+        stickyPanel.classList.add('hidden');
+      }
+    });
+
+    // Scroll listener kept for sticky panel toggle
+
+    function render() {
+      const headerActions = document.getElementById('header-actions');
+      if (!project) {
+        setupScreen.classList.remove('hidden');
+        projectDashboard.classList.add('hidden');
+        stickyPanel.classList.add('hidden');
+        headerActions.innerHTML = '';
+        return;
+      }
+
+      setupScreen.classList.add('hidden');
+      projectDashboard.classList.remove('hidden');
+
+      headerActions.innerHTML = `
+        <button 
+          onclick="resetProject()" 
+          class="flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 text-slate-700 bg-slate-50 text-xs font-semibold rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+        >
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+          New Purchases
+        </button>
+      `;
+
+      const limit = project.targetLimit;
+      const records = project.records;
+      const totalBags = records.reduce((sum, r) => sum + r.actualBags, 0);
+      const totalQty = totalBags * 64;
+      const pct = limit > 0 ? Math.min(100, Math.round((totalBags / limit) * 100)) : 0;
+
+      document.getElementById('stat-target-limit').textContent = limit.toLocaleString();
+      document.getElementById('stat-current-bags').textContent = totalBags.toLocaleString();
+      
+      const qtyLabel = totalQty.toLocaleString();
+      document.getElementById('stat-total-qty').textContent = qtyLabel;
+
+      document.getElementById('progress-bar-text').textContent = totalBags.toLocaleString() + ' / ' + limit.toLocaleString() + ' (' + pct + '%)';
+      document.getElementById('progress-bar-fill').style.width = pct + '%';
+
+      // Sticky panel updates handled via static button
+
+      if (records.length === 0) {
+        tableEmptyState.classList.remove('hidden');
+        tableWrapper.classList.add('hidden');
+      } else {
+        tableEmptyState.classList.add('hidden');
+        tableWrapper.classList.remove('hidden');
+        
+        let htmlStr = '';
+        records.forEach((rec, idx) => {
+          const isRowCapped = rec.actualBags < rec.calculatedBags;
+          htmlStr += `
+            <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs ${idx % 2 === 1 ? 'bg-slate-50/40' : ''}">
+              <td class="py-4 px-4 font-mono text-slate-400">${idx + 1}</td>
+              <td class="py-4 px-4 font-bold text-slate-800 font-mono">${rec.area}</td>
+              <td class="py-4 px-4 text-center font-bold">
+                <span class="font-mono ${isRowCapped ? 'text-amber-600' : 'text-slate-800'}">
+                  ${rec.actualBags}
+                </span>
+                ${isRowCapped ? '<span class="block text-[9px] font-bold text-amber-500">Capped</span>' : ''}
+              </td>
+              <td class="py-4 px-4 text-right font-bold font-mono text-slate-900">${rec.qty.toLocaleString()}</td>
+              <td class="py-4 px-4 text-right font-mono text-slate-600">${rec.cumulativeBags.toLocaleString()}</td>
+              <td class="py-4 px-4 text-center">
+                <button 
+                  onclick="deleteRecord('${rec.id}')"
+                  class="text-slate-405 hover:text-rose-600 cursor-pointer p-1"
+                >
+                  <i data-lucide="trash" class="w-4 h-4"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+        document.getElementById('records-tbody').innerHTML = htmlStr;
+      }
+
+      lucide.createIcons();
+    }
+  </script>
+</body>
+</html>

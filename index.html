@@ -44,6 +44,39 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen pb-24">
 
+  <!-- ========================================== -->
+  <!-- AUTHENTICATION OVERLAY (INJECTED) -->
+  <!-- ========================================== -->
+  <div id="auth-overlay" class="fixed inset-0 z-50 bg-slate-50 flex flex-col items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-slate-200 p-8 shadow-lg max-w-sm w-full space-y-6">
+      <div class="text-center space-y-2">
+        <div class="w-12 h-12 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center mx-auto border border-slate-200">
+          <i data-lucide="lock" class="w-6 h-6"></i>
+        </div>
+        <h2 class="text-xl font-black text-slate-900 tracking-tight">App Locked</h2>
+        <p class="text-xs text-slate-500">Please enter your credentials.</p>
+      </div>
+      
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label for="login-username" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Username</label>
+          <input type="text" id="login-username" required placeholder="Enter username" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm font-bold">
+        </div>
+        <div>
+          <label for="login-password" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Password</label>
+          <input type="password" id="login-password" required placeholder="Enter password" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm font-bold">
+        </div>
+        <p id="login-error" class="text-xs text-rose-500 font-bold hidden text-center">Invalid username or password.</p>
+        <button type="submit" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 px-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-sm mt-2">
+          <i data-lucide="unlock" class="w-4 h-4"></i>
+          Unlock App
+        </button>
+      </form>
+    </div>
+  </div>
+  <!-- ========================================== -->
+
+
   <!-- Application Header -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
     <div class="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
@@ -449,6 +482,38 @@
 
       lucide.createIcons();
     }
+    
+    // ==========================================
+    // AUTHENTICATION LOGIC (INJECTED)
+    // ==========================================
+    const authOverlay = document.getElementById('auth-overlay');
+    const loginForm = document.getElementById('login-form');
+    const loginError = document.getElementById('login-error');
+
+    // Check if user is already authenticated in this session
+    if (sessionStorage.getItem('isAuthenticated') === 'true') {
+      authOverlay.classList.add('hidden');
+    }
+
+    // Handle login attempt
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      // Convert username to lowercase for case-insensitive check
+      const enteredUser = document.getElementById('login-username').value.trim().toLowerCase();
+      
+      // Keep password exact for case-sensitive check
+      const enteredPass = document.getElementById('login-password').value;
+
+      if (enteredUser === 'graphical_joe' && enteredPass === 'P@ssw0rd') {
+        sessionStorage.setItem('isAuthenticated', 'true');
+        authOverlay.classList.add('hidden');
+        loginError.classList.add('hidden');
+      } else {
+        loginError.classList.remove('hidden');
+      }
+    });
+    // ==========================================
   </script>
 </body>
 </html>

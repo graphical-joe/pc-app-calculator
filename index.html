@@ -295,11 +295,11 @@
       let runningCumulative = 0;
       
       project.records = project.rawRecords.map((item, index) => {
-        const calculatedBags = Math.floor((item.area * 580) / 64);
+        const calculatedBags = Math.floor((item.area * 580) / 62.5);
         const remainingAllowance = Math.max(0, project.targetLimit - runningCumulative);
         const actualBags = Math.max(0, Math.min(calculatedBags, remainingAllowance));
         runningCumulative += actualBags;
-        const qty = actualBags * 64;
+        const qty = actualBags * 62.5;
 
         return {
           id: item.id,
@@ -325,7 +325,7 @@
       }
 
       liveEstimator.classList.remove('hidden');
-      const calculatedBags = Math.floor((area * 580) / 64);
+      const calculatedBags = Math.floor((area * 580) / 62.5);
       estimCalcBags.textContent = calculatedBags;
 
       const totalBagsSoFar = project.records.reduce((sum, r) => sum + r.actualBags, 0);
@@ -430,7 +430,7 @@
       const limit = project.targetLimit;
       const records = project.records;
       const totalBags = records.reduce((sum, r) => sum + r.actualBags, 0);
-      const totalQty = totalBags * 64;
+      const totalQty = totalBags * 62.5;
       const pct = limit > 0 ? Math.min(100, Math.round((totalBags / limit) * 100)) : 0;
 
       document.getElementById('stat-target-limit').textContent = limit.toLocaleString();

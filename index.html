@@ -1,1225 +1,972 @@
-import React, { useState, useEffect, useMemo, FormEvent } from 'react';
-import { Project, FarmRecord, FarmerAllocation } from './types';
-import { recalculateRecords, generateSingleFileHTML, distributeBagsUnevenly } from './utils';
-import { 
-  Sprout, 
-  Target, 
-  Scale, 
-  Trash2, 
-  PlusCircle, 
-  RefreshCw, 
-  Download, 
-  FileCode, 
-  Calculator, 
-  Check, 
-  AlertTriangle,
-  Sparkles,
-  Clipboard,
-  FileSpreadsheet,
-  Lock,
-  Unlock,
-  Shuffle,
-  Users
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PC App Calculator</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
 
-export default function App() {
-  // Navigation State
-  const [activeTab, setActiveTab] = useState<'calculator' | 'randomizer'>('calculator');
-
-  // Randomizer State
-  const [randomizerBags, setRandomizerBags] = useState<string>('50');
-  const [randomizerFarmers, setRandomizerFarmers] = useState<string>('8');
-  const [randomizerAllocations, setRandomizerAllocations] = useState<FarmerAllocation[] | null>(null);
-  const [randomizerError, setRandomizerError] = useState<string | null>(null);
-
-  // Authentication State
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return typeof window !== 'undefined' && sessionStorage.getItem('isAuthenticated') === 'true';
-  });
-  const [loginUsername, setLoginUsername] = useState<string>('');
-  const [loginPassword, setLoginPassword] = useState<string>('');
-  const [loginError, setLoginError] = useState<boolean>(false);
-
-  // Project State (saves to localStorage)
-  const [project, setProject] = useState<Project | null>(null);
-
-  // Setup Form inputs
-  const [targetLimitInput, setTargetLimitInput] = useState<string>('500');
-
-  // Record Form inputs
-  const [areaInput, setAreaInput] = useState<string>('');
-
-  // UI States
-  const [copiedHTML, setCopiedHTML] = useState<boolean>(false);
-  const [showCodePreview, setShowCodePreview] = useState<boolean>(false);
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'warn' } | null>(null);
-
-  // Load project on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('cocoa_farming_project');
-    if (saved) {
-      try {
-        setProject(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse saved project state", e);
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            agri: {
+              50: '#f4fbf6',
+              100: '#e3f5ea',
+              600: '#16a34a',
+              700: '#15803d',
+              900: '#14532d',
+            }
+          }
+        }
       }
     }
-  }, []);
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-24">
 
-  // Sync state helper that locks to localStorage
-  const updateProject = (newProject: Project | null) => {
-    setProject(newProject);
-    if (newProject) {
-      localStorage.setItem('cocoa_farming_project', JSON.stringify(newProject));
-    } else {
-      localStorage.removeItem('cocoa_farming_project');
-    }
-  };
-
-  // Helper notification trigger
-  const triggerToast = (message: string, type: 'success' | 'warn' = 'success') => {
-    setNotification({ message, type });
-  };
-
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => setNotification(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
-
-  // Handle authentication login
-  const handleLogin = (e: FormEvent) => {
-    e.preventDefault();
-    const enteredUser = loginUsername.trim().toLowerCase();
-    const enteredPass = loginPassword;
-
-    if (enteredUser === 'graphical_joe' && enteredPass === 'P@ssw0rd') {
-      sessionStorage.setItem('isAuthenticated', 'true');
-      setIsAuthenticated(true);
-      setLoginError(false);
-      setLoginPassword('');
-    } else {
-      setLoginError(true);
-    }
-  };
-
-  // Handle logout
-  const handleLogout = () => {
-    sessionStorage.removeItem('isAuthenticated');
-    setIsAuthenticated(false);
-    setLoginPassword('');
-    setLoginError(false);
-  };
-
-  // Project Stats Calculations
-  const stats = useMemo(() => {
-    if (!project) return { totalBags: 0, totalQty: 0, percentage: 0, remainingBags: 0 };
-    const totalBags = project.records.reduce((sum, r) => sum + r.actualBags, 0);
-    const totalQty = totalBags * 64;
-    const percentage = project.targetLimit > 0 ? Math.min(100, (totalBags / project.targetLimit) * 100) : 0;
-    const remainingBags = Math.max(0, project.targetLimit - totalBags);
-    return { totalBags, totalQty, percentage, remainingBags };
-  }, [project]);
-
-  // Live estimator feedback on the inputs
-  const liveEstimate = useMemo(() => {
-    const area = parseFloat(areaInput);
-    if (isNaN(area) || area <= 0 || !project) return null;
-    
-    // Formula: Floor((Area * 580) / 64)
-    const calculatedBags = Math.floor((area * 580) / 64);
-    const remainingAllowance = Math.max(0, project.targetLimit - stats.totalBags);
-    const actualBags = Math.max(0, Math.min(calculatedBags, remainingAllowance));
-    const qty = actualBags * 64;
-    const isCapped = actualBags < calculatedBags;
-
-    return { calculatedBags, actualBags, qty, isCapped };
-  }, [areaInput, project, stats.totalBags]);
-
-  // Handle setting up a new project
-  const handleStartProject = (e: FormEvent) => {
-    e.preventDefault();
-    const limit = parseInt(targetLimitInput, 10);
-    if (isNaN(limit) || limit <= 0) {
-      triggerToast('Target limit must be a positive number', 'warn');
-      return;
-    }
-
-    const newProject: Project = {
-      id: 'proj_' + Date.now(),
-      name: 'PC App Calculator',
-      targetLimit: limit,
-      farmerName: '',
-      records: [],
-      createdAt: new Date().toISOString()
-    };
-
-    updateProject(newProject);
-    setAreaInput('');
-    triggerToast(`Project initialized with a target limit of ${limit} bags.`);
-  };
-
-  // Add farm area record
-  const handleAddRecord = (e: FormEvent) => {
-    e.preventDefault();
-    if (!project) return;
-
-    const area = parseFloat(areaInput);
-    if (isNaN(area) || area <= 0) {
-      triggerToast('Farm area must be a valid number of hectares', 'warn');
-      return;
-    }
-
-    const sectionName = `Record #${project.records.length + 1}`;
-
-    const newRawRecord = {
-      id: 'rec_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      sectionName,
-      area,
-      timestamp: new Date().toISOString()
-    };
-
-    // Calculate sequential update
-    const rawList = [...project.records.map(r => ({
-      id: r.id,
-      sectionName: r.sectionName,
-      area: r.area,
-      timestamp: r.timestamp
-    })), newRawRecord];
-
-    const updatedRecords = recalculateRecords(rawList, project.targetLimit);
-
-    const updatedProj: Project = {
-      ...project,
-      records: updatedRecords
-    };
-
-    updateProject(updatedProj);
-    setAreaInput('');
-    
-    // Warn if limit is fully saturated or record was capped
-    const newlyAdded = updatedRecords[updatedRecords.length - 1];
-    if (newlyAdded.actualBags < newlyAdded.calculatedBags) {
-      triggerToast('Record added but capped to respect maximum project allowance.', 'warn');
-    } else {
-      triggerToast('Production area calculation matrices updated.');
-    }
-  };
-
-  // Delete a record and sequentially recalculate subsequent limits
-  const handleDeleteRecord = (id: string) => {
-    if (!project) return;
-    
-    const remainingRaw = project.records
-      .filter(r => r.id !== id)
-      .map(r => ({
-        id: r.id,
-        sectionName: r.sectionName,
-        area: r.area,
-        timestamp: r.timestamp
-      }));
-
-    const recalculated = recalculateRecords(remainingRaw, project.targetLimit);
-
-    updateProject({
-      ...project,
-      records: recalculated
-    });
-
-    triggerToast('Record deleted. Sequential limits and totals updated.');
-  };
-
-  // Reset current project confirmation
-  const handleReset = () => {
-    updateProject(null);
-    setAreaInput('');
-    setTargetLimitInput('500'); // reset target limit default input to 500
-    triggerToast('Calculator reset. Ready for new purchases.', 'success');
-  };
-
-  // Generate the standalone HTML for copy/download
-  const standaloneHTMLString = useMemo(() => {
-    return generateSingleFileHTML(project);
-  }, [project]);
-
-  // Direct trigger filesave
-  const downloadSingleFile = () => {
-    const blob = new Blob([standaloneHTMLString], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `cocoa_calculator.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    triggerToast('Standalone single index.html file downloaded successfully!');
-  };
-
-  // Export CSV
-  const downloadCSV = () => {
-    if (!project || project.records.length === 0) return;
-    
-    const headers = 'Sequence,Farm Area (Ha),Number of Bags,Qty (kg),Cumulative bags\n';
-    const rows = project.records.map((r, i) => {
-      return `${i + 1},${r.area},${r.actualBags},${r.qty},${r.cumulativeBags}`;
-    }).join('\n');
-
-    const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `cocoa_production_log.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    triggerToast('Spreadsheet CSV log downloaded!');
-  };
-
-  // Randomizer parsed numeric states
-  const parsedRandomizerBags = parseInt(randomizerBags, 10) || 0;
-  const parsedRandomizerFarmers = parseInt(randomizerFarmers, 10) || 0;
-
-  // Bag value counts breakdown for the randomizer
-  const bagValueCounts = useMemo(() => {
-    if (!randomizerAllocations) return null;
-    const counts: Record<number, number> = {};
-    for (let v = 3; v <= 10; v++) counts[v] = 0;
-    for (const a of randomizerAllocations) {
-      counts[a.bags] = (counts[a.bags] || 0) + 1;
-    }
-    const distinctCount = Object.values(counts).filter(c => c > 0).length;
-    return { counts, distinctCount };
-  }, [randomizerAllocations]);
-
-  // Handle Randomizer submit
-  const handleGenerateRandomizer = (e?: FormEvent) => {
-    if (e) e.preventDefault();
-    const bags = parseInt(randomizerBags, 10);
-    const farmers = parseInt(randomizerFarmers, 10);
-
-    if (isNaN(bags) || isNaN(farmers)) {
-      setRandomizerError('Please enter valid positive numbers for both cocoa bags and farmers.');
-      return;
-    }
-
-    const res = distributeBagsUnevenly(bags, farmers);
-    if (!res.success) {
-      setRandomizerError(res.message || 'Unable to distribute bags.');
-      setRandomizerAllocations(null);
-    } else {
-      setRandomizerError(null);
-      setRandomizerAllocations(res.allocations);
-      triggerToast(`Distributed ${bags} bags unevenly among ${farmers} farmers.`);
-    }
-  };
-
-  // Re-shuffle randomizer
-  const handleShuffleRandomizer = () => {
-    handleGenerateRandomizer();
-  };
-
-  // Export Randomizer CSV
-  const downloadRandomizerCSV = () => {
-    if (!randomizerAllocations || randomizerAllocations.length === 0) return;
-    const headers = 'Farmer Number,Number of Bags,Quantity (kg)\n';
-    const rows = randomizerAllocations.map(a => `${a.farmerName},${a.bags},${a.qtyKg}`).join('\n');
-    const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `cocoa_farmers_randomizer_${Date.now()}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    triggerToast('Farmer distribution CSV downloaded!');
-  };
-
-  // Copy Randomizer Table
-  const copyRandomizerTable = async () => {
-    if (!randomizerAllocations || randomizerAllocations.length === 0) return;
-    const totalB = randomizerAllocations.reduce((s, a) => s + a.bags, 0);
-    const totalQ = randomizerAllocations.reduce((s, a) => s + a.qtyKg, 0);
-    const text = 'Farmer Number\tNumber of Bags\tQuantity (kg)\n' +
-      randomizerAllocations.map(a => `${a.farmerName}\t${a.bags} bags\t${a.qtyKg} kg`).join('\n') +
-      `\nTotal\t${totalB} bags\t${totalQ} kg`;
-    try {
-      await navigator.clipboard.writeText(text);
-      triggerToast('Farmer distribution table copied to clipboard!');
-    } catch (err) {
-      triggerToast('Unable to copy to clipboard.', 'warn');
-    }
-  };
-
-  // Copy Single HTML content to Clipboard
-  const copyHTMLToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(standaloneHTMLString);
-      setCopiedHTML(true);
-      triggerToast('Single-file HTML code copied to clipboard!');
-      setTimeout(() => setCopiedHTML(false), 2000);
-    } catch (err) {
-      triggerToast('Unable to copy. Use the download button instead.', 'warn');
-    }
-  };
-
-  // Inject boilerplate mock records for visual preview validation
-  const loadMockData = () => {
-    if (!project) return;
-    
-    const mockInputs = [
-      { id: 'mock_1', sectionName: 'Record #1', area: 12.5, timestamp: new Date(Date.now() - 3600000 * 3).toISOString() },
-      { id: 'mock_2', sectionName: 'Record #2', area: 8.2, timestamp: new Date(Date.now() - 3600000 * 2).toISOString() },
-      { id: 'mock_3', sectionName: 'Record #3', area: 15.0, timestamp: new Date(Date.now() - 3600000).toISOString() },
-    ];
-
-    const recalculated = recalculateRecords(mockInputs, project.targetLimit);
-    updateProject({
-      ...project,
-      records: recalculated
-    });
-    triggerToast('Loaded 3 realistic agricultural area records into active matrices.');
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 pb-32 font-sans selection:bg-emerald-100 selection:text-emerald-950">
+  <!-- ========================================== -->
+  <!-- AUTHENTICATION OVERLAY -->
+  <!-- ========================================== -->
+  <div id="auth-overlay" class="fixed inset-0 z-50 bg-slate-50 flex flex-col items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-slate-200 p-8 shadow-lg max-w-sm w-full space-y-6">
+      <div class="text-center space-y-2">
+        <div class="w-12 h-12 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center mx-auto border border-slate-200">
+          <i data-lucide="lock" class="w-6 h-6"></i>
+        </div>
+        <h2 class="text-xl font-black text-slate-900 tracking-tight">App Locked</h2>
+        <p class="text-xs text-slate-500">Please enter your credentials.</p>
+      </div>
       
-      {/* AUTHENTICATION OVERLAY */}
-      {!isAuthenticated && (
-        <div id="auth-overlay" className="fixed inset-0 z-50 bg-slate-50 flex flex-col items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-lg max-w-sm w-full space-y-6">
-            <div className="text-center space-y-2">
-              <div className="w-12 h-12 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center mx-auto border border-slate-200">
-                <Lock className="w-6 h-6" />
-              </div>
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">App Locked</h2>
-              <p className="text-xs text-slate-500">Please enter your credentials.</p>
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label for="login-username" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Username</label>
+          <input type="text" id="login-username" required placeholder="Enter username" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm font-bold">
+        </div>
+        <div>
+          <label for="login-password" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Password</label>
+          <input type="password" id="login-password" required placeholder="Enter password" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm font-bold">
+        </div>
+        <p id="login-error" class="text-xs text-rose-500 font-bold hidden text-center">Invalid username or password.</p>
+        <button type="submit" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 px-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-sm mt-2">
+          <i data-lucide="unlock" class="w-4 h-4"></i>
+          Unlock App
+        </button>
+      </form>
+    </div>
+  </div>
+  <!-- ========================================== -->
+
+  <!-- Application Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100">
+          <i data-lucide="calculator" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-extrabold tracking-tight text-slate-900">PC App Calculator</h1>
+          <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Cocoa Purchaser</p>
+        </div>
+      </div>
+
+      <!-- Tab Switcher -->
+      <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <button 
+          id="btn-tab-calc" 
+          onclick="switchTab('calculator')" 
+          class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-white text-emerald-800 shadow-xs cursor-pointer"
+        >
+          <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
+          Calculator
+        </button>
+        <button 
+          id="btn-tab-rand" 
+          onclick="switchTab('randomizer')" 
+          class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900 cursor-pointer"
+        >
+          <i data-lucide="shuffle" class="w-3.5 h-3.5 text-emerald-600"></i>
+          Randomizer
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button 
+          onclick="lockApp()" 
+          title="Lock Application" 
+          class="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 bg-slate-50 text-xs font-semibold rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+        >
+          <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+          Lock
+        </button>
+        <div id="header-actions"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-5xl mx-auto px-4 py-8">
+
+    <!-- CALCULATOR SECTION -->
+    <div id="calculator-section" class="space-y-6">
+
+      <!-- Active Tracker (Starts hidden if no project) -->
+      <div id="project-dashboard" class="hidden space-y-6">
+        
+        <!-- Top Overview Stats Grid -->
+        <div class="grid grid-cols-3 gap-1.5 sm:gap-4">
+          
+          <div class="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm flex items-center sm:items-start gap-1.5 sm:gap-4">
+            <div class="p-1.5 sm:p-3 bg-slate-50 text-slate-500 rounded-lg sm:rounded-xl border border-slate-100 shrink-0">
+              <i data-lucide="target" class="w-3.5 h-3.5 sm:w-5 sm:h-5"></i>
             </div>
-            
-            <form onSubmit={handleLogin} id="login-form" className="space-y-4">
-              <div>
-                <label htmlFor="login-username" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Username</label>
+            <div class="min-w-0">
+              <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Target</p>
+              <p class="text-xs sm:text-2xl font-bold font-mono text-slate-800 mt-0.5 truncate" id="stat-target-limit">0</p>
+            </div>
+          </div>
+
+          <div class="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm flex items-center sm:items-start gap-1.5 sm:gap-4">
+            <div class="p-1.5 sm:p-3 bg-amber-50 text-amber-600 rounded-lg sm:rounded-xl border border-amber-100 shrink-0">
+              <i data-lucide="container" class="w-3.5 h-3.5 sm:w-5 sm:h-5"></i>
+            </div>
+            <div class="min-w-0">
+              <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Bags</p>
+              <p class="text-xs sm:text-2xl font-bold font-mono text-slate-800 mt-0.5" id="stat-current-bags">0</p>
+            </div>
+          </div>
+
+          <div class="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-emerald-100 shadow-sm flex items-center sm:items-start gap-1.5 sm:gap-4 bg-emerald-50/20">
+            <div class="p-1.5 sm:p-3 bg-emerald-100 text-emerald-700 rounded-lg sm:rounded-xl border border-emerald-100 shrink-0">
+              <i data-lucide="scale" class="w-3.5 h-3.5 sm:w-5 sm:h-5"></i>
+            </div>
+            <div class="min-w-0">
+              <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Total Qty</p>
+              <p class="text-xs sm:text-2xl font-black font-mono text-emerald-600 mt-0.5 truncate" id="stat-total-qty">0</p>
+            </div>
+          </div>
+          
+        </div>
+
+        <!-- Limit Progress Meter -->
+        <div class="bg-white p-2.5 sm:p-3.5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="flex justify-between items-center text-[10px] sm:text-xs font-medium text-slate-500 mb-1.5">
+            <span>Capacity Meter</span>
+            <span id="progress-bar-text" class="font-mono">0 / 0 (0%)</span>
+          </div>
+          <div class="w-full bg-slate-100 h-1 sm:h-1.5 rounded-full overflow-hidden">
+            <div id="progress-bar-fill" class="bg-emerald-600 h-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Interactive records container -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[300px] flex flex-col">
+          
+          <!-- Active compact area addition form directly above table headers -->
+          <div class="bg-slate-50 border-b border-slate-200 p-4">
+            <form id="record-form" class="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div class="flex-1">
                 <input 
-                  type="text" 
-                  id="login-username" 
+                  type="number" 
+                  id="input-area" 
+                  step="0.01" 
+                  min="0.01" 
                   required 
-                  value={loginUsername}
-                  onChange={(e) => setLoginUsername(e.target.value)}
-                  placeholder="Enter username" 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm font-bold"
-                />
+                  placeholder="Enter farm area" 
+                  class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-sm font-bold"
+                >
               </div>
-              <div>
-                <label htmlFor="login-password" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Password</label>
-                <input 
-                  type="password" 
-                  id="login-password" 
-                  required 
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="Enter password" 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm font-bold"
-                />
+
+              <!-- Live Yield Estimate Panel -->
+              <div id="live-estimator" class="bg-white px-3 py-1.5 rounded-lg border border-dashed border-slate-200 hidden text-[11px] text-slate-600 flex items-center gap-4">
+                <div>
+                  <span>Estimated Bags: </span>
+                  <span class="font-mono font-bold text-slate-800" id="estim-calc-bags">0</span>
+                </div>
+                <div class="w-px h-3 bg-slate-200 hidden sm:block"></div>
+                <div>
+                  <span>Allowed Bags: </span>
+                  <span class="font-mono text-emerald-600 font-bold" id="estim-actual-bags">0</span>
+                </div>
               </div>
-              {loginError && (
-                <p id="login-error" className="text-xs text-rose-500 font-bold text-center">Invalid username or password.</p>
-              )}
+
               <button 
                 type="submit" 
-                className="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 px-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-sm mt-2"
+                class="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 text-xs cursor-pointer border border-emerald-700 shrink-0 select-none"
               >
-                <Unlock className="w-4 h-4" />
-                Unlock App
+                <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                Add Record
               </button>
             </form>
           </div>
-        </div>
-      )}
 
-      {/* Toast Alert Banner */}
-      {notification && (
-        <div 
-          className={`fixed top-4 right-4 z-50 p-4 rounded-xl border shadow-xl flex items-start gap-3 bg-white w-85 text-sm animate-fade-in border-l-4 ${
-            notification.type === 'success' ? 'border-l-emerald-500' : 'border-l-amber-500'
-          }`}
-        >
-          <div className="mt-0.5">
-            {notification.type === 'success' ? (
-              <Check className="w-5 h-5 text-emerald-500" />
-            ) : (
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
-            )}
+          <div id="table-empty-state" class="p-12 text-center text-slate-450 my-auto space-y-3">
+            <i data-lucide="table" class="w-8 h-8 text-slate-300 mx-auto"></i>
+            <p class="font-semibold text-slate-600 text-sm">No Records Added</p>
+            <p class="text-xs text-slate-400 max-w-xs mx-auto">Hectare calculations will populate when you submit records above.</p>
           </div>
+
+          <!-- Table Wrapper -->
+          <div id="table-wrapper" class="overflow-x-auto hidden">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase text-slate-500 tracking-wider">
+                  <th class="py-3 px-4 font-normal text-slate-400 w-12">#</th>
+                  <th class="py-3 px-4">Area</th>
+                  <th class="py-3 px-4 text-center">Bags</th>
+                  <th class="py-3 px-4 text-right">Qty</th>
+                  <th class="py-3 px-4 text-right">CF</th>
+                  <th class="py-3 px-4 text-center w-16">Action</th>
+                </tr>
+              </thead>
+              <tbody id="records-tbody" class="divide-y divide-slate-100">
+                <!-- Dynamic rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- First interface: Setup screen -->
+      <div id="setup-screen" class="max-w-md mx-auto my-16 bg-white rounded-3xl border border-slate-200 p-8 shadow-lg space-y-6">
+        <div class="text-center space-y-2">
+          <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mx-auto border border-emerald-100">
+            <i data-lucide="calculator" class="w-6 h-6"></i>
+          </div>
+          <h2 class="text-xl font-black text-slate-900 tracking-tight">PC App Calculator</h2>
+          <p class="text-xs text-slate-400">Cocoa Purchaser</p>
+        </div>
+
+        <form id="setup-form" class="space-y-4">
           <div>
-            <p className="font-bold text-slate-900">
-              {notification.type === 'success' ? 'Action Completed' : 'Calculation Alert'}
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{notification.message}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Top Professional Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-        <div className="max-w-5xl mx-auto px-4 py-3 sm:py-4 flex flex-col md:flex-row justify-between items-center gap-3 sm:gap-4">
-          
-          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-100 rounded-xl text-emerald-700">
-                <Calculator className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div>
-                <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-900">PC App Calculator</h1>
-                <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Cocoa Purchaser</p>
-              </div>
-            </div>
-
-            {/* Mobile Tab Switcher */}
-            <div className="flex md:hidden items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-              <button
-                onClick={() => setActiveTab('calculator')}
-                className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  activeTab === 'calculator'
-                    ? 'bg-white text-emerald-800 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
+            <label for="setup-limit" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Target Limit (Bags) *</label>
+            <div class="relative">
+              <input 
+                type="number" 
+                id="setup-limit" 
+                min="1" 
+                required 
+                value="500"
+                placeholder="e.g., 500" 
+                class="w-full pl-4 pr-16 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-base font-bold font-mono"
               >
-                <Calculator className="w-3 h-3" />
-                Calc
-              </button>
-              <button
-                onClick={() => setActiveTab('randomizer')}
-                className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  activeTab === 'randomizer'
-                    ? 'bg-white text-emerald-800 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Shuffle className="w-3 h-3 text-emerald-600" />
-                Randomizer
-              </button>
+              <span class="absolute right-4 top-3.5 text-xs font-semibold text-slate-400 uppercase">bags</span>
             </div>
           </div>
 
-          {/* Desktop Tab Switcher */}
-          <div className="hidden md:flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <button
-              onClick={() => setActiveTab('calculator')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                activeTab === 'calculator'
-                  ? 'bg-white text-emerald-800 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Calculator className="w-3.5 h-3.5" />
-              Calculator
-            </button>
-            <button
-              onClick={() => setActiveTab('randomizer')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                activeTab === 'randomizer'
-                  ? 'bg-white text-emerald-800 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Shuffle className="w-3.5 h-3.5 text-emerald-600" />
-              Randomizer
-              <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded">NEW</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap w-full md:w-auto justify-end">
-            {project && activeTab === 'calculator' && (
-              <>
-                <button
-                  onClick={handleReset}
-                  className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
-                  title="Wipe active session"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  New Purchases
-                </button>
-                <button
-                  onClick={downloadSingleFile}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 text-white hover:bg-slate-800 text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-xs"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Standalone HTML
-                </button>
-              </>
-            )}
-            {isAuthenticated && (
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
-                title="Lock Application"
-              >
-                <Lock className="w-3.5 h-3.5" />
-                Lock
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Main Container Layout */}
-      <main className="max-w-5xl mx-auto px-4 py-8">
-
-        {activeTab === 'randomizer' ? (
-          /* RANDOMIZER VIEW */
-          <div className="space-y-6">
-            
-            {/* Randomizer Hero / Setup Card */}
-            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 shrink-0">
-                    <Shuffle className="w-6 h-6 sm:w-7 sm:h-7" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Cocoa Bags Randomizer</h2>
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase rounded-md">New Feature</span>
-                    </div>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
-                      Multiply total bags by <strong className="text-slate-800 font-mono">64 kg</strong> and distribute whole bags unevenly among farmers (min. 3 bags, max. 10 bags per farmer).
-                    </p>
-                  </div>
-                </div>
-
-                {randomizerAllocations && (
-                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                    <button
-                      onClick={handleShuffleRandomizer}
-                      className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer border border-emerald-700"
-                      title="Re-run random uneven allocation"
-                    >
-                      <Shuffle className="w-3.5 h-3.5" />
-                      Shuffle Again
-                    </button>
-                    <button
-                      onClick={downloadRandomizerCSV}
-                      className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
-                      title="Download tabular allocation CSV"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      Export CSV
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Two Input Form Fields: Number of Bags and Number of Farmers */}
-              <form onSubmit={handleGenerateRandomizer} className="mt-6 pt-6 border-t border-slate-100">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  
-                  {/* Field 1: Number of Cocoa Bags */}
-                  <div>
-                    <label htmlFor="rand-bags" className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                      1. Number of Cocoa Bags *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        id="rand-bags"
-                        min="3"
-                        required
-                        value={randomizerBags}
-                        onChange={(e) => {
-                          setRandomizerBags(e.target.value);
-                          setRandomizerError(null);
-                        }}
-                        placeholder="e.g. 50"
-                        className="w-full pl-4 pr-16 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-base font-bold font-mono text-slate-800"
-                      />
-                      <span className="absolute right-4 top-3.5 text-xs font-semibold text-slate-400 uppercase">bags</span>
-                    </div>
-                    {parsedRandomizerBags > 0 && (
-                      <div className="mt-2 text-xs text-slate-500 flex items-center gap-1.5 font-medium">
-                        <Scale className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span>
-                          Total Weight: <strong className="font-mono text-emerald-700 font-bold">{(parsedRandomizerBags * 64).toLocaleString()} kg</strong> ({parsedRandomizerBags} × 64 kg)
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Field 2: Number of Farmers */}
-                  <div>
-                    <label htmlFor="rand-farmers" className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                      2. Number of Farmers *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        id="rand-farmers"
-                        min="1"
-                        required
-                        value={randomizerFarmers}
-                        onChange={(e) => {
-                          setRandomizerFarmers(e.target.value);
-                          setRandomizerError(null);
-                        }}
-                        placeholder="e.g. 8"
-                        className="w-full pl-4 pr-20 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-base font-bold font-mono text-slate-800"
-                      />
-                      <span className="absolute right-4 top-3.5 text-xs font-semibold text-slate-400 uppercase">farmers</span>
-                    </div>
-                    {parsedRandomizerFarmers > 0 && (
-                      <div className="mt-2 text-xs text-slate-500 flex items-center gap-1.5 font-medium">
-                        <Users className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                        <span>
-                          Allowed Bags Range: <strong className="font-mono text-slate-800">{parsedRandomizerFarmers * 3}</strong> to <strong className="font-mono text-slate-800">{parsedRandomizerFarmers * 10}</strong> bags (3–10/farmer)
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                </div>
-
-                {/* Validation Error Message */}
-                {randomizerError && (
-                  <div className="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 text-rose-800 text-xs">
-                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-bold">Distribution Constraint Alert</p>
-                      <p className="mt-0.5 leading-relaxed">{randomizerError}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Submit Action */}
-                <div className="mt-6 flex items-center gap-3">
-                  <button
-                    type="submit"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-6 rounded-xl font-bold transition-all shadow-xs hover:shadow flex items-center justify-center gap-2 text-sm cursor-pointer border border-emerald-700"
-                  >
-                    <Shuffle className="w-4 h-4" />
-                    Distribute Bags Unevenly
-                  </button>
-                  {randomizerAllocations && (
-                    <button
-                      type="button"
-                      onClick={handleShuffleRandomizer}
-                      className="px-4 py-3 border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm transition-colors cursor-pointer flex items-center gap-1.5"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                      Re-distribute
-                    </button>
-                  )}
-                </div>
-              </form>
-            </div>
-
-            {/* Results Display */}
-            {randomizerAllocations && (
-              <div className="space-y-4">
-                {/* Metric Summary Cards */}
-                <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                  <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-                    <div className="p-2 sm:p-3 bg-slate-100 text-slate-700 rounded-xl shrink-0">
-                      <Users className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Farmers</p>
-                      <p className="text-sm sm:text-2xl font-black font-mono text-slate-800 truncate">{randomizerAllocations.length}</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-                    <div className="p-2 sm:p-3 bg-amber-50 text-amber-700 rounded-xl shrink-0 border border-amber-100">
-                      <Calculator className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Total Bags</p>
-                      <p className="text-sm sm:text-2xl font-black font-mono text-slate-800 truncate">
-                        {randomizerAllocations.reduce((sum, a) => sum + a.bags, 0).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-emerald-100 shadow-xs flex items-center gap-3 bg-emerald-50/20">
-                    <div className="p-2 sm:p-3 bg-emerald-100 text-emerald-700 rounded-xl shrink-0">
-                      <Scale className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Total Qty (kg)</p>
-                      <p className="text-sm sm:text-2xl font-black font-mono text-emerald-600 truncate">
-                        {randomizerAllocations.reduce((sum, a) => sum + a.qtyKg, 0).toLocaleString()} kg
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Range Coverage & Spread Breakdown Card */}
-                {bagValueCounts && (
-                  <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-slate-800">Range Coverage (3–10 Bags):</span>
-                        {bagValueCounts.distinctCount === 8 ? (
-                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold flex items-center gap-1">
-                            <Check className="w-3 h-3" />
-                            Full 3–10 Range Represented (All 8 Values Present)
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">
-                            {bagValueCounts.distinctCount} Distinct Bag Sizes Represented
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[11px] text-slate-400 font-medium">
-                        Evenly balanced to avoid artificial clumping
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                      {[3, 4, 5, 6, 7, 8, 9, 10].map(val => {
-                        const count = bagValueCounts.counts[val] || 0;
-                        return (
-                          <div 
-                            key={val}
-                            className={`p-2.5 rounded-xl text-center border transition-all ${
-                              count > 0 
-                                ? 'bg-slate-50 border-slate-200' 
-                                : 'bg-slate-100/50 border-dashed border-slate-200 opacity-50'
-                            }`}
-                          >
-                            <div className="text-[10px] uppercase font-bold text-slate-500 font-mono">{val} Bags</div>
-                            <div className={`text-xs font-bold font-mono mt-0.5 ${count > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>
-                              {count} {count === 1 ? 'farmer' : 'farmers'}
-                            </div>
-                            <div className="text-[9px] text-slate-400 font-mono mt-0.5">
-                              {val * 64} kg
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Simple Tabular View */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                  <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-800">Farmer Distribution Result</h3>
-                      <p className="text-xs text-slate-400">Uneven allocation of whole cocoa bags (3–10 bags per farmer at 64 kg each)</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={copyRandomizerTable}
-                        className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-emerald-700 bg-white border border-slate-200 px-3 py-1.5 rounded-lg transition-colors cursor-pointer font-medium"
-                      >
-                        <Clipboard className="w-3.5 h-3.5" />
-                        Copy Table
-                      </button>
-                      <button
-                        onClick={downloadRandomizerCSV}
-                        className="flex items-center gap-1.5 text-xs text-white bg-slate-800 hover:bg-slate-900 px-3 py-1.5 rounded-lg transition-colors cursor-pointer font-medium"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        CSV
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-sm">
-                      <thead>
-                        <tr className="bg-slate-50/70 border-b border-slate-200 text-xs font-bold uppercase text-slate-500 tracking-wider">
-                          <th className="py-3 px-4 w-12 text-slate-400">#</th>
-                          <th className="py-3 px-4">Farmer Number</th>
-                          <th className="py-3 px-4 text-center">Number of Bags</th>
-                          <th className="py-3 px-4 text-right">Quantity in kg</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {randomizerAllocations.map((alloc, idx) => (
-                          <tr 
-                            key={alloc.farmerIndex}
-                            className={`hover:bg-slate-50/80 transition-colors ${idx % 2 === 1 ? 'bg-slate-50/30' : ''}`}
-                          >
-                            <td className="py-3.5 px-4 font-mono text-slate-400 text-xs">{idx + 1}</td>
-                            <td className="py-3.5 px-4 font-bold text-slate-900">
-                              <span className="inline-flex items-center gap-2">
-                                <span className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-mono flex items-center justify-center font-bold border border-emerald-100">
-                                  {alloc.farmerIndex}
-                                </span>
-                                {alloc.farmerName}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 text-center">
-                              <span className="inline-flex items-center px-3 py-1 rounded-lg font-mono font-bold text-slate-800 bg-slate-100 border border-slate-200 text-xs">
-                                {alloc.bags} bags
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-mono font-extrabold text-emerald-700 text-sm">
-                              {alloc.qtyKg.toLocaleString()} kg
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr className="bg-slate-50 border-t-2 border-slate-200 font-bold text-xs">
-                          <td className="py-3.5 px-4 text-slate-400 font-mono">TOTAL</td>
-                          <td className="py-3.5 px-4 text-slate-900 font-extrabold">{randomizerAllocations.length} Farmers</td>
-                          <td className="py-3.5 px-4 text-center font-mono text-slate-900 text-sm font-black">
-                            {randomizerAllocations.reduce((s, a) => s + a.bags, 0).toLocaleString()} bags
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-mono text-emerald-700 text-sm font-black">
-                            {randomizerAllocations.reduce((s, a) => s + a.qtyKg, 0).toLocaleString()} kg
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* CALCULATOR VIEW */
-          <>
-            {/* SETUP SCREEN */}
-            {!project ? (
-              <div className="max-w-md mx-auto my-12 bg-white rounded-3xl border border-slate-200 p-8 shadow-xl space-y-6">
-                <div className="text-center space-y-2">
-                  <div className="w-14 h-14 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto border border-emerald-100 shadow-xs">
-                    <Calculator className="w-7 h-7" />
-                  </div>
-                  <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">PC App Calculator</h2>
-                  <p className="text-xs text-slate-500">
-                    Setup Target Limit and initialize production mapping instantly.
-                  </p>
-                </div>
-
-                <form onSubmit={handleStartProject} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                      Target Limit (Bags) *
-                    </label>
-                    <div id="target-limit-input-container" className="relative">
-                      <input
-                        type="number"
-                        min="1"
-                        required
-                        value={targetLimitInput}
-                        onChange={(e) => setTargetLimitInput(e.target.value)}
-                        placeholder="e.g. 500"
-                        className="w-full pl-4 pr-16 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-base font-bold font-mono text-slate-800"
-                      />
-                      <span className="absolute right-4 top-3 text-sm font-semibold text-slate-400">bags</span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-sm cursor-pointer border border-emerald-700"
-                  >
-                    <Calculator className="w-4 h-4" />
-                    Start Purchases
-                  </button>
-                </form>
-
-                {/* Shortcut to Randomizer */}
-                <div className="pt-4 border-t border-slate-100 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('randomizer')}
-                    className="text-xs text-emerald-700 hover:text-emerald-800 font-bold inline-flex items-center gap-1.5 hover:underline cursor-pointer"
-                  >
-                    <Shuffle className="w-3.5 h-3.5" />
-                    Looking to distribute bags across farmers? Use Randomizer →
-                  </button>
-                </div>
-              </div>
-            ) : (
-          
-          /* ACTIVE PROJECT DASHBOARD */
-          <div className="space-y-6 animate-fade-in">
-            
-            {/* Top Stat Dashboard Cards */}
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-4">
-              
-              <div className="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs flex items-center sm:items-start gap-1.5 sm:gap-4">
-                <div className="p-1.5 sm:p-3 bg-emerald-50 text-emerald-700 rounded-lg sm:rounded-xl border border-emerald-100 shrink-0">
-                  <Target className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Target</p>
-                  <p className="text-xs sm:text-2xl font-black font-mono text-slate-800 mt-0.5 truncate">
-                    {project.targetLimit.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs flex items-center sm:items-start gap-1.5 sm:gap-4">
-                <div className="p-1.5 sm:p-3 bg-amber-50 text-amber-700 rounded-lg sm:rounded-xl border border-amber-100 shrink-0">
-                  <Calculator className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Bags</p>
-                  <p className="text-xs sm:text-2xl font-black font-mono text-slate-800 mt-0.5 truncate">
-                    {stats.totalBags.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-
-              {/* Fixed Total Quantity Highlight Card */}
-              <div className="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs flex items-center sm:items-start gap-1.5 sm:gap-4">
-                <div className="p-1.5 sm:p-3 bg-emerald-50 text-emerald-700 rounded-lg sm:rounded-xl border border-emerald-100 shrink-0">
-                  <Scale className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Qty</p>
-                  <p id="total-qty-highlight" className="text-xs sm:text-2xl font-black font-mono text-emerald-600 mt-0.5 truncate">
-                    {stats.totalQty.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Visual limit gauge progress bar */}
-            <div className="bg-white p-2.5 sm:p-3.5 rounded-xl border border-slate-200 shadow-xs">
-              <div className="flex justify-between items-center text-[10px] sm:text-xs font-semibold text-slate-600 mb-1.5">
-                <span className="flex items-center gap-1 text-slate-700">
-                  <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${stats.remainingBags === 0 ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`}></span>
-                  Production Limit Meter
-                </span>
-                <span className="font-mono">
-                  {stats.totalBags.toLocaleString()} / {project.targetLimit.toLocaleString()} ({stats.percentage.toFixed(1)}%)
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 h-1 sm:h-1.5 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full transition-all duration-500 ease-out ${
-                    stats.remainingBags === 0 
-                      ? 'bg-amber-500' 
-                      : 'bg-gradient-to-r from-emerald-500 to-emerald-600'
-                  }`}
-                  style={{ width: `${stats.percentage}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* Interactive Records Grid */}
-            <div className="space-y-6">
-              
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                
-                {/* Active compact area addition form directly above table headers */}
-                <div className="bg-slate-50 border-b border-slate-100 p-4">
-                  <form onSubmit={handleAddRecord} className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <div className="flex-1">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        required
-                        value={areaInput}
-                        onChange={(e) => setAreaInput(e.target.value)}
-                        placeholder="Enter farm area"
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-sm font-bold text-slate-800"
-                      />
-                    </div>
-
-                    {/* Live Yield Estimation feedback panel */}
-                    {liveEstimate && (
-                      <div className="bg-white px-3 py-1.5 rounded-lg border border-dashed border-slate-200 animate-slide-in text-[11px] text-slate-600 flex items-center gap-4">
-                        <div>
-                          <span>Estimated Bags: </span>
-                          <span className="font-mono text-slate-800 font-bold">{liveEstimate.calculatedBags}</span>
-                        </div>
-                        <div className="w-px h-3 bg-slate-200 hidden sm:block"></div>
-                        <div>
-                          <span>{liveEstimate.isCapped ? 'Allowed (Capped): ' : 'Allowed Bags: '}</span>
-                          <span className={`font-mono font-bold ${liveEstimate.isCapped ? 'text-amber-600' : 'text-emerald-700'}`}>
-                            {liveEstimate.actualBags}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-lg font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 text-xs cursor-pointer border border-emerald-700 shrink-0"
-                    >
-                      <PlusCircle className="w-3.5 h-3.5" />
-                      Add Record
-                    </button>
-                  </form>
-                </div>
-                
-                {/* Empty Table Placeholder */}
-                {project.records.length === 0 ? (
-                  <div className="p-12 text-center text-slate-400 space-y-4">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
-                      <Scale className="w-8 h-8" />
-                    </div>
-                    <div className="max-w-xs mx-auto space-y-3">
-                      <div>
-                        <p className="font-bold text-slate-700 text-sm">No Active Area Records</p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Once hectares are added, calculation logs, cumulative weights, and bag limiters will populate here instantly.
-                        </p>
-                      </div>
-                      <button
-                        onClick={loadMockData}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-100 text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Load Dummy Data
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                    
-                    /* calculations table responsive wrapper */
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse text-sm">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                            <th className="py-3 px-4 text-slate-400 font-mono w-10">#</th>
-                            <th className="py-3 px-4">Area</th>
-                            <th className="py-3 px-4 text-center">Bags</th>
-                            <th className="py-3 px-4 text-right">Qty</th>
-                            <th className="py-3 px-4 text-right">CF</th>
-                            <th className="py-3 px-4 text-center">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {project.records.map((rec, index) => {
-                            const isCapped = rec.actualBags < rec.calculatedBags;
-                            return (
-                              <tr 
-                                key={rec.id} 
-                                className={`group hover:bg-slate-50/70 transition-colors ${
-                                  index % 2 === 1 ? 'bg-slate-50/20' : ''
-                                }`}
-                              >
-                                <td className="py-4 px-4 font-mono text-slate-400 text-xs">{index + 1}</td>
-                                <td className="py-4 px-4 font-mono font-bold text-slate-900">
-                                  {rec.area.toFixed(2)}
-                                </td>
-                                <td className="py-4 px-4 text-center font-bold">
-                                  {isCapped ? (
-                                    <div className="inline-flex flex-col items-center">
-                                      <span className="font-mono text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200 text-xs">
-                                        {rec.actualBags}
-                                      </span>
-                                      <span className="text-[9px] font-extrabold text-amber-600 bg-amber-100/50 px-1 mt-0.5 rounded uppercase tracking-wider">
-                                        Capped
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <span className="font-mono text-slate-800">
-                                      {rec.actualBags}
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="py-4 px-4 text-right font-extrabold font-mono text-slate-950">
-                                  {rec.qty.toLocaleString()}
-                                </td>
-                                <td className="py-4 px-4 text-right font-mono font-semibold text-slate-600">
-                                  {rec.cumulativeBags.toLocaleString()}
-                                </td>
-                                <td className="py-4 px-4 text-center">
-                                  <button
-                                    onClick={() => handleDeleteRecord(rec.id)}
-                                    className="p-1 px-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                    title="Delete entry"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-
-                </div>
-
-                {/* Standalone HTML Copying & Inspector Card */}
-                <div className="bg-slate-900 rounded-3xl p-6 border border-slate-800 text-white shadow-xl space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <FileCode className="text-emerald-400 w-5 h-5" />
-                      <div>
-                        <h3 className="font-bold text-sm tracking-tight text-white">Standalone Export Code</h3>
-                        <p className="text-xs text-slate-400">Perfect for hostable static uploads as requested</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <button
-                        onClick={copyHTMLToClipboard}
-                        className="p-2 bg-slate-800/80 hover:bg-slate-700 hover:text-emerald-300 rounded-xl transition-all cursor-pointer text-slate-300 text-xs flex items-center gap-1"
-                        title="Copy entire standalone code block to clipboard"
-                      >
-                        {copiedHTML ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            Copied
-                          </>
-                        ) : (
-                          <>
-                            <Clipboard className="w-3.5 h-3.5" />
-                            Copy HTML
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setShowCodePreview(!showCodePreview)}
-                        className="text-xs text-slate-400 bg-slate-800 hover:bg-slate-700 px-2.5 py-2 rounded-xl transition-colors cursor-pointer"
-                      >
-                        {showCodePreview ? 'Hide Code' : 'Show Code'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {showCodePreview && (
-                    <div className="relative rounded-xl overflow-hidden bg-black max-h-60 overflow-y-auto border border-slate-800">
-                      <pre className="p-4 text-[10px] font-mono text-emerald-400 leading-normal select-all">
-                        {standaloneHTMLString}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-
-              </div>
-
-            </div>
-          )}
-          </>
-        )}
-
-      </main>
-
-      {/* FIXED PINNED PERSISTENT TOTAL WIDGET AT BOTTOM BAR */}
-      {project && activeTab === 'calculator' && (
-        <div 
-          id="pinned-quantity-widget"
-          className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-3.5 px-4 shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.08)] z-30 flex items-center justify-center"
-        >
-          <div className="max-w-5xl mx-auto w-full flex justify-center items-center">
-            <button
-              onClick={handleReset}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer border border-emerald-700"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              New Purchases
-            </button>
-          </div>
-        </div>
-      )}
+          <button 
+            type="submit" 
+            class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+          >
+            <i data-lucide="play" class="w-4 h-4"></i>
+            Start Project
+          </button>
+        </form>
+      </div>
 
     </div>
-  );
-}
+    <!-- END CALCULATOR SECTION -->
+
+    <!-- RANDOMIZER SECTION -->
+    <div id="randomizer-section" class="hidden space-y-6">
+      <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+        <div class="flex items-start gap-4">
+          <div class="p-3 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 shrink-0">
+            <i data-lucide="shuffle" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Cocoa Bags Randomizer</h2>
+              <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase rounded-md">New Feature</span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl">
+              Multiply total cocoa bags by <strong class="text-slate-700 font-mono">64 kg</strong> and distribute whole bags unevenly among farmers (min. 3 bags, max. 10 bags per farmer).
+            </p>
+          </div>
+        </div>
+
+        <form id="randomizer-form" onsubmit="handleRandomizerSubmit(event)" class="mt-6 pt-6 border-t border-slate-100">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <div>
+              <label for="rand-bags-input" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                1. Number of Cocoa Bags *
+              </label>
+              <div class="relative">
+                <input 
+                  type="number" 
+                  id="rand-bags-input" 
+                  min="3" 
+                  required 
+                  value="50" 
+                  placeholder="e.g. 50" 
+                  class="w-full pl-4 pr-16 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold font-mono text-base"
+                >
+                <span class="absolute right-4 top-3.5 text-xs font-semibold text-slate-400 uppercase">bags</span>
+              </div>
+            </div>
+
+            <div>
+              <label for="rand-farmers-input" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                2. Number of Farmers *
+              </label>
+              <div class="relative">
+                <input 
+                  type="number" 
+                  id="rand-farmers-input" 
+                  min="1" 
+                  required 
+                  value="8" 
+                  placeholder="e.g. 8" 
+                  class="w-full pl-4 pr-20 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold font-mono text-base"
+                >
+                <span class="absolute right-4 top-3.5 text-xs font-semibold text-slate-400 uppercase">farmers</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="rand-error" class="hidden mt-4 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-medium"></div>
+
+          <div class="mt-6 flex items-center gap-3">
+            <button 
+              type="submit" 
+              class="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-6 rounded-xl font-bold transition-all shadow-sm flex items-center gap-2 text-sm cursor-pointer border border-emerald-700 select-none"
+            >
+              <i data-lucide="shuffle" class="w-4 h-4"></i>
+              Distribute Bags Unevenly
+            </button>
+            <button 
+              type="button" 
+              onclick="shuffleRandomizer()" 
+              id="rand-reshuffle-btn" 
+              class="hidden px-4 py-3 border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+              Re-distribute
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Result Card -->
+      <div id="rand-results" class="hidden space-y-4">
+        <div class="grid grid-cols-3 gap-2 sm:gap-4">
+          <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Farmers</p>
+            <p id="rand-stat-farmers" class="text-xs sm:text-2xl font-black font-mono text-slate-800 mt-0.5">0</p>
+          </div>
+          <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Bags</p>
+            <p id="rand-stat-bags" class="text-xs sm:text-2xl font-black font-mono text-slate-800 mt-0.5">0</p>
+          </div>
+          <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-emerald-100 shadow-sm bg-emerald-50/20">
+            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Weight (kg)</p>
+            <p id="rand-stat-qty" class="text-xs sm:text-2xl font-black font-mono text-emerald-600 mt-0.5">0 kg</p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">Farmer Distribution Result</h3>
+              <p class="text-xs text-slate-400">Whole cocoa bags distributed unevenly (3–10 bags each at 64 kg/bag)</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button 
+                type="button" 
+                onclick="copyRandomizerTable()" 
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer shadow-xs"
+              >
+                <i data-lucide="clipboard" class="w-3.5 h-3.5"></i>
+                Copy Table
+              </button>
+              <button 
+                type="button" 
+                onclick="downloadRandomizerCSV()" 
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer shadow-xs"
+              >
+                <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-600"></i>
+                Export CSV
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="bg-slate-50/70 border-b border-slate-200 text-xs font-bold uppercase text-slate-500 tracking-wider">
+                  <th class="py-3 px-4 w-12 text-slate-400">#</th>
+                  <th class="py-3 px-4">Farmer Number</th>
+                  <th class="py-3 px-4 text-center">Number of Bags</th>
+                  <th class="py-3 px-4 text-right">Quantity in kg</th>
+                </tr>
+              </thead>
+              <tbody id="rand-tbody" class="divide-y divide-slate-100"></tbody>
+              <tfoot>
+                <tr class="bg-slate-50 border-t-2 border-slate-200 font-bold text-xs">
+                  <td class="py-3.5 px-4 text-slate-400 font-mono">TOTAL</td>
+                  <td id="rand-foot-farmers" class="py-3.5 px-4 text-slate-900 font-bold">0 Farmers</td>
+                  <td id="rand-foot-bags" class="py-3.5 px-4 text-center font-mono text-slate-900 text-sm font-bold">0 bags</td>
+                  <td id="rand-foot-qty" class="py-3.5 px-4 text-right font-mono text-emerald-700 text-sm font-bold">0 kg</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END RANDOMIZER SECTION -->
+
+  </main>
+
+  <!-- Sticky Pinned Total Widget -->
+  <div id="sticky-total-panel" class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-3.5 px-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] z-40 hidden">
+    <div class="max-w-5xl mx-auto w-full flex justify-center items-center">
+      <button onclick="resetProject()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer border border-emerald-700 select-none">
+        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        New Purchases
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let project = null;
+
+    const setupScreen = document.getElementById('setup-screen');
+    const projectDashboard = document.getElementById('project-dashboard');
+    const setupForm = document.getElementById('setup-form');
+    const recordForm = document.getElementById('record-form');
+    const recordsTbody = document.getElementById('records-tbody');
+    const tableEmptyState = document.getElementById('table-empty-state');
+    const tableWrapper = document.getElementById('table-wrapper');
+    const stickyPanel = document.getElementById('sticky-total-panel');
+
+    const inputArea = document.getElementById('input-area');
+    const liveEstimator = document.getElementById('live-estimator');
+    const estimCalcBags = document.getElementById('estim-calc-bags');
+    const estimActualBags = document.getElementById('estim-actual-bags');
+
+    window.addEventListener('load', () => {
+      const saved = localStorage.getItem('cocoa_farming_project');
+      if (saved) {
+        try {
+          project = JSON.parse(saved);
+        } catch(e) {}
+      }
+      render();
+      lucide.createIcons();
+    });
+
+    function computeAndRecalculate() {
+      if (!project) return;
+      let runningCumulative = 0;
+      
+      project.records = project.rawRecords.map((item, index) => {
+        const calculatedBags = Math.floor((item.area * 580) / 64);
+        const remainingAllowance = Math.max(0, project.targetLimit - runningCumulative);
+        const actualBags = Math.max(0, Math.min(calculatedBags, remainingAllowance));
+        runningCumulative += actualBags;
+        const qty = actualBags * 64;
+
+        return {
+          id: item.id,
+          sectionName: 'Record #' + (index + 1),
+          area: Number(item.area),
+          calculatedBags,
+          actualBags,
+          qty,
+          cumulativeBags: runningCumulative,
+          timestamp: item.timestamp
+        };
+      });
+
+      localStorage.setItem('cocoa_farming_project', JSON.stringify(project));
+    }
+
+    function handleLiveEstimation() {
+      if (!project) return;
+      const area = Number(inputArea.value);
+      if (!area || area <= 0) {
+        liveEstimator.classList.add('hidden');
+        return;
+      }
+
+      liveEstimator.classList.remove('hidden');
+      const calculatedBags = Math.floor((area * 580) / 64);
+      estimCalcBags.textContent = calculatedBags;
+
+      const totalBagsSoFar = project.records.reduce((sum, r) => sum + r.actualBags, 0);
+      const remainingAllowance = Math.max(0, project.targetLimit - totalBagsSoFar);
+      const actualBags = Math.max(0, Math.min(calculatedBags, remainingAllowance));
+
+      estimActualBags.textContent = actualBags;
+    }
+
+    inputArea.addEventListener('input', handleLiveEstimation);
+
+    setupForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const targetLimit = Number(document.getElementById('setup-limit').value);
+
+      project = {
+        id: 'proj_' + Date.now(),
+        name: 'PC App Calculator',
+        targetLimit,
+        farmerName: '',
+        createdAt: new Date().toISOString(),
+        rawRecords: [],
+        records: []
+      };
+
+      computeAndRecalculate();
+      render();
+    });
+
+    recordForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!project) return;
+
+      const area = Number(inputArea.value);
+      const newRawRecord = {
+        id: 'rec_' + Date.now(),
+        sectionName: '',
+        area,
+        timestamp: new Date().toISOString()
+      };
+
+      project.rawRecords.push(newRawRecord);
+      computeAndRecalculate();
+
+      inputArea.value = '';
+      liveEstimator.classList.add('hidden');
+      render();
+    });
+
+    window.deleteRecord = function(id) {
+      if (!project) return;
+      project.rawRecords = project.rawRecords.filter(r => r.id !== id);
+      computeAndRecalculate();
+      render();
+    };
+
+    window.resetProject = function() {
+      project = null;
+      localStorage.removeItem('cocoa_farming_project');
+      const setupLimitInput = document.getElementById('setup-limit');
+      if (setupLimitInput) {
+        setupLimitInput.value = '500';
+      }
+      render();
+    };
+
+    window.addEventListener('scroll', () => {
+      if (!project) return;
+      if (window.scrollY > 80) {
+        stickyPanel.classList.remove('hidden');
+      } else {
+        stickyPanel.classList.add('hidden');
+      }
+    });
+
+    function render() {
+      const headerActions = document.getElementById('header-actions');
+      if (!project) {
+        setupScreen.classList.remove('hidden');
+        projectDashboard.classList.add('hidden');
+        stickyPanel.classList.add('hidden');
+        headerActions.innerHTML = '';
+        return;
+      }
+
+      setupScreen.classList.add('hidden');
+      projectDashboard.classList.remove('hidden');
+
+      headerActions.innerHTML = `
+        <button 
+          onclick="resetProject()" 
+          class="flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 text-slate-700 bg-slate-50 text-xs font-semibold rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+        >
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+          New Purchases
+        </button>
+      `;
+
+      const limit = project.targetLimit;
+      const records = project.records;
+      const totalBags = records.reduce((sum, r) => sum + r.actualBags, 0);
+      const totalQty = totalBags * 64;
+      const pct = limit > 0 ? Math.min(100, Math.round((totalBags / limit) * 100)) : 0;
+
+      document.getElementById('stat-target-limit').textContent = limit.toLocaleString();
+      document.getElementById('stat-current-bags').textContent = totalBags.toLocaleString();
+      
+      const qtyLabel = totalQty.toLocaleString();
+      document.getElementById('stat-total-qty').textContent = qtyLabel;
+
+      document.getElementById('progress-bar-text').textContent = totalBags.toLocaleString() + ' / ' + limit.toLocaleString() + ' (' + pct + '%)';
+      document.getElementById('progress-bar-fill').style.width = pct + '%';
+
+      if (records.length === 0) {
+        tableEmptyState.classList.remove('hidden');
+        tableWrapper.classList.add('hidden');
+      } else {
+        tableEmptyState.classList.add('hidden');
+        tableWrapper.classList.remove('hidden');
+        
+        let htmlStr = '';
+        records.forEach((rec, idx) => {
+          const isRowCapped = rec.actualBags < rec.calculatedBags;
+          htmlStr += `
+            <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs ${idx % 2 === 1 ? 'bg-slate-50/40' : ''}">
+              <td class="py-4 px-4 font-mono text-slate-400">${idx + 1}</td>
+              <td class="py-4 px-4 font-bold text-slate-800 font-mono">${rec.area}</td>
+              <td class="py-4 px-4 text-center font-bold">
+                <span class="font-mono ${isRowCapped ? 'text-amber-600' : 'text-slate-800'}">
+                  ${rec.actualBags}
+                </span>
+                ${isRowCapped ? '<span class="block text-[9px] font-bold text-amber-500">Capped</span>' : ''}
+              </td>
+              <td class="py-4 px-4 text-right font-bold font-mono text-slate-900">${rec.qty.toLocaleString()}</td>
+              <td class="py-4 px-4 text-right font-mono text-slate-600">${rec.cumulativeBags.toLocaleString()}</td>
+              <td class="py-4 px-4 text-center">
+                <button 
+                  onclick="deleteRecord('${rec.id}')"
+                  class="text-slate-400 hover:text-rose-600 cursor-pointer p-1"
+                >
+                  <i data-lucide="trash" class="w-4 h-4"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+        document.getElementById('records-tbody').innerHTML = htmlStr;
+      }
+
+      lucide.createIcons();
+    }
+
+    // Tab switching logic
+    window.switchTab = function(tab) {
+      const calcSec = document.getElementById('calculator-section');
+      const randSec = document.getElementById('randomizer-section');
+      const btnCalc = document.getElementById('btn-tab-calc');
+      const btnRand = document.getElementById('btn-tab-rand');
+      const stickyP = document.getElementById('sticky-total-panel');
+
+      if (tab === 'randomizer') {
+        calcSec.classList.add('hidden');
+        randSec.classList.remove('hidden');
+        stickyP.classList.add('hidden');
+        btnCalc.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900 cursor-pointer';
+        btnRand.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-white text-emerald-800 shadow-xs cursor-pointer';
+      } else {
+        calcSec.classList.remove('hidden');
+        randSec.classList.add('hidden');
+        btnCalc.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-white text-emerald-800 shadow-xs cursor-pointer';
+        btnRand.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900 cursor-pointer';
+      }
+      lucide.createIcons();
+    };
+
+    // Randomizer Distribution Logic
+    window.handleRandomizerSubmit = function(e) {
+      if (e) e.preventDefault();
+      const bagsInput = document.getElementById('rand-bags-input');
+      const farmersInput = document.getElementById('rand-farmers-input');
+      const errEl = document.getElementById('rand-error');
+      const resultsEl = document.getElementById('rand-results');
+      const reshuffleBtn = document.getElementById('rand-reshuffle-btn');
+
+      const bags = parseInt(bagsInput.value, 10);
+      const farmers = parseInt(farmersInput.value, 10);
+
+      if (isNaN(bags) || isNaN(farmers)) {
+        errEl.textContent = 'Please enter valid positive numbers for both fields.';
+        errEl.classList.remove('hidden');
+        resultsEl.classList.add('hidden');
+        return;
+      }
+
+      const minB = farmers * 3;
+      const maxB = farmers * 10;
+
+      if (bags < minB) {
+        errEl.textContent = 'For ' + farmers + ' farmers, the minimum total is ' + minB + ' bags (least 3 bags per farmer). You entered ' + bags + ' bags.';
+        errEl.classList.remove('hidden');
+        resultsEl.classList.add('hidden');
+        return;
+      }
+
+      if (bags > maxB) {
+        errEl.textContent = 'For ' + farmers + ' farmers, the maximum total is ' + maxB + ' bags (maximum 10 bags per farmer). You entered ' + bags + ' bags.';
+        errEl.classList.remove('hidden');
+        resultsEl.classList.add('hidden');
+        return;
+      }
+
+      errEl.classList.add('hidden');
+      reshuffleBtn.classList.remove('hidden');
+
+      // Realistic allocation algorithm
+      const canIncludeAll8 = (farmers >= 8) &&
+        (bags >= 52 + (farmers - 8) * 3) &&
+        (bags <= 52 + (farmers - 8) * 10);
+
+      let farmerBags = [];
+      if (canIncludeAll8) {
+        farmerBags = [3, 4, 5, 6, 7, 8, 9, 10];
+        const remF = farmers - 8;
+        const remB = bags - 52;
+        if (remF > 0) {
+          const base = Math.floor(remB / remF);
+          const extra = remB - base * remF;
+          for (let i = 0; i < remF; i++) {
+            farmerBags.push(base + (i < extra ? 1 : 0));
+          }
+        }
+      } else {
+        farmerBags = new Array(farmers).fill(3);
+        let rem = bags - minB;
+        while (rem > 0) {
+          const eligible = [];
+          for (let i = 0; i < farmers; i++) {
+            if (farmerBags[i] < 10) eligible.push(i);
+          }
+          if (eligible.length === 0) break;
+          const chosen = eligible[Math.floor(Math.random() * eligible.length)];
+          farmerBags[chosen] += 1;
+          rem -= 1;
+        }
+      }
+
+      function getCounts(arr) {
+        const counts = {};
+        for (let v = 3; v <= 10; v++) counts[v] = 0;
+        for (let i = 0; i < arr.length; i++) {
+          const v = arr[i];
+          counts[v] = (counts[v] || 0) + 1;
+        }
+        return counts;
+      }
+
+      const maxAllowedFreq = canIncludeAll8
+        ? Math.max(2, Math.ceil(farmers / 5) + 1)
+        : Math.max(2, Math.ceil(farmers / 3));
+
+      function computeScore(counts) {
+        let distinct = 0;
+        let penalty = 0;
+        for (let v = 3; v <= 10; v++) {
+          const c = counts[v] || 0;
+          if (c > 0) distinct++;
+          penalty += c * c;
+        }
+        return distinct * 100 - penalty * 4;
+      }
+
+      const iterations = Math.max(600, farmers * 40);
+      for (let it = 0; it < iterations; it++) {
+        const idxA = Math.floor(Math.random() * farmers);
+        const idxB = Math.floor(Math.random() * farmers);
+        if (idxA === idxB) continue;
+
+        const valA = farmerBags[idxA];
+        const valB = farmerBags[idxB];
+        if (valA === valB) continue;
+
+        const newA = valA - 1;
+        const newB = valB + 1;
+        if (newA < 3 || newB > 10) continue;
+
+        const counts = getCounts(farmerBags);
+        const currScore = computeScore(counts);
+
+        if (canIncludeAll8 && counts[valA] === 1 && newB !== valA) {
+          continue;
+        }
+
+        if ((counts[newB] || 0) + 1 > maxAllowedFreq) {
+          continue;
+        }
+
+        const candCounts = { ...counts };
+        candCounts[valA] -= 1;
+        candCounts[newA] = (candCounts[newA] || 0) + 1;
+        candCounts[valB] -= 1;
+        candCounts[newB] = (candCounts[newB] || 0) + 1;
+
+        if (canIncludeAll8) {
+          let allPresent = true;
+          for (let v = 3; v <= 10; v++) {
+            if (!candCounts[v] || candCounts[v] < 1) {
+              allPresent = false;
+              break;
+            }
+          }
+          if (!allPresent) continue;
+        } else {
+          let candDistinct = 0;
+          let currDistinct = 0;
+          for (let v = 3; v <= 10; v++) {
+            if (candCounts[v] > 0) candDistinct++;
+            if (counts[v] > 0) currDistinct++;
+          }
+          if (candDistinct < currDistinct) continue;
+        }
+
+        const candScore = computeScore(candCounts);
+        if (candScore >= currScore || Math.random() < 0.2) {
+          farmerBags[idxA] = newA;
+          farmerBags[idxB] = newB;
+        }
+      }
+
+      for (let i = farmerBags.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = farmerBags[i];
+        farmerBags[i] = farmerBags[j];
+        farmerBags[j] = temp;
+      }
+
+      // Render table rows
+      const totalWeightKg = bags * 64;
+      document.getElementById('rand-stat-farmers').textContent = farmers;
+      document.getElementById('rand-stat-bags').textContent = bags.toLocaleString();
+      document.getElementById('rand-stat-qty').textContent = totalWeightKg.toLocaleString() + ' kg';
+
+      document.getElementById('rand-foot-farmers').textContent = farmers + ' Farmers';
+      document.getElementById('rand-foot-bags').textContent = bags.toLocaleString() + ' bags';
+      document.getElementById('rand-foot-qty').textContent = totalWeightKg.toLocaleString() + ' kg';
+
+      window.currentFarmerBags = farmerBags;
+
+      let rowsHtml = '';
+      farmerBags.forEach((b, idx) => {
+        const qty = b * 64;
+        rowsHtml += '<tr class="hover:bg-slate-50 transition-colors ' + (idx % 2 === 1 ? 'bg-slate-50/40' : '') + '">' +
+          '<td class="py-3 px-4 font-mono text-slate-400 text-xs">' + (idx + 1) + '</td>' +
+          '<td class="py-3 px-4 font-bold text-slate-900">Farmer ' + (idx + 1) + '</td>' +
+          '<td class="py-3 px-4 text-center"><span class="px-2.5 py-1 rounded-lg font-mono font-bold text-slate-800 bg-slate-100 border border-slate-200 text-xs">' + b + ' bags</span></td>' +
+          '<td class="py-3 px-4 text-right font-mono font-extrabold text-emerald-700 text-sm">' + qty.toLocaleString() + ' kg</td>' +
+          '</tr>';
+      });
+
+      document.getElementById('rand-tbody').innerHTML = rowsHtml;
+      resultsEl.classList.remove('hidden');
+      lucide.createIcons();
+    };
+
+    window.shuffleRandomizer = function() {
+      window.handleRandomizerSubmit();
+    };
+
+    window.copyRandomizerTable = async function() {
+      if (!window.currentFarmerBags || window.currentFarmerBags.length === 0) return;
+      let text = "Farmer Number\tNumber of Bags\tQuantity in kg\n";
+      let totalB = 0;
+      let totalQ = 0;
+      window.currentFarmerBags.forEach((b, i) => {
+        const q = b * 64;
+        totalB += b;
+        totalQ += q;
+        text += "Farmer " + (i + 1) + "\t" + b + " bags\t" + q + " kg\n";
+      });
+      text += "TOTAL\t" + totalB + " bags\t" + totalQ + " kg";
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast("Table copied to clipboard!");
+      } catch (err) {
+        showToast("Copied table text to clipboard!");
+      }
+    };
+
+    window.downloadRandomizerCSV = function() {
+      if (!window.currentFarmerBags || window.currentFarmerBags.length === 0) return;
+      let csv = "Farmer Number,Number of Bags,Quantity (kg)\n";
+      window.currentFarmerBags.forEach((b, i) => {
+        csv += "Farmer " + (i + 1) + "," + b + "," + (b * 64) + "\n";
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "cocoa_randomizer_" + Date.now() + ".csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("Farmer distribution CSV downloaded!");
+    };
+
+    function showToast(msg) {
+      let toast = document.getElementById('toast-notification');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast-notification';
+        toast.className = 'fixed top-5 right-5 z-50 bg-slate-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg transition-all duration-300 flex items-center gap-2';
+        document.body.appendChild(toast);
+      }
+      toast.innerHTML = '<span>' + msg + '</span>';
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        if (toast) toast.classList.add('hidden');
+      }, 3000);
+    }
+
+    window.lockApp = function() {
+      sessionStorage.removeItem('isAuthenticated');
+      authOverlay.classList.remove('hidden');
+      const passEl = document.getElementById('login-password');
+      if (passEl) passEl.value = '';
+      lucide.createIcons();
+    };
+    
+    // ==========================================
+    // AUTHENTICATION LOGIC
+    // ==========================================
+    const authOverlay = document.getElementById('auth-overlay');
+    const loginForm = document.getElementById('login-form');
+    const loginError = document.getElementById('login-error');
+
+    // Check if user is already authenticated in this session
+    if (sessionStorage.getItem('isAuthenticated') === 'true') {
+      authOverlay.classList.add('hidden');
+    }
+
+    // Handle login attempt
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const enteredUser = document.getElementById('login-username').value.trim().toLowerCase();
+      const enteredPass = document.getElementById('login-password').value;
+
+      if (enteredUser === 'graphical_joe' && enteredPass === 'P@ssw0rd') {
+        sessionStorage.setItem('isAuthenticated', 'true');
+        authOverlay.classList.add('hidden');
+        loginError.classList.add('hidden');
+      } else {
+        loginError.classList.remove('hidden');
+      }
+    });
+    // ==========================================
+  </script>
+</body>
+</html>

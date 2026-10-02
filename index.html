@@ -297,10 +297,10 @@
           <div>
             <div class="flex items-center gap-2 flex-wrap">
               <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Cocoa Bags Randomizer</h2>
-              <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase rounded-md">New Feature</span>
+              <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase rounded-md">Updated</span>
             </div>
             <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl">
-              Multiply total cocoa bags by <strong class="text-slate-700 font-mono">64 kg</strong> and distribute whole bags unevenly among farmers (min. 3 bags, max. 10 bags per farmer).
+              Multiply total cocoa bags by <strong class="text-slate-700 font-mono">64 kg</strong> and distribute quantities unevenly among farmers (minimum <strong>15 kg</strong> [~0.23 bags] up to <strong>10 bags</strong> [640 kg] per farmer, guaranteed decimal bag results for all).
             </p>
           </div>
         </div>
@@ -315,10 +315,11 @@
                 <input 
                   type="number" 
                   id="rand-bags-input" 
-                  min="3" 
+                  step="0.01" 
+                  min="0.01" 
                   required 
-                  value="50" 
-                  placeholder="e.g. 50" 
+                  value="25" 
+                  placeholder="e.g. 25" 
                   class="w-full pl-4 pr-16 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold font-mono text-base"
                 >
                 <span class="absolute right-4 top-3.5 text-xs font-semibold text-slate-400 uppercase">bags</span>
@@ -352,7 +353,7 @@
               class="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-6 rounded-xl font-bold transition-all shadow-sm flex items-center gap-2 text-sm cursor-pointer border border-emerald-700 select-none"
             >
               <i data-lucide="shuffle" class="w-4 h-4"></i>
-              Distribute Bags Unevenly
+              Distribute Unevenly
             </button>
             <button 
               type="button" 
@@ -388,7 +389,7 @@
           <div class="px-5 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 class="text-sm font-bold text-slate-800">Farmer Distribution Result</h3>
-              <p class="text-xs text-slate-400">Whole cocoa bags distributed unevenly (3–10 bags each at 64 kg/bag)</p>
+              <p class="text-xs text-slate-400">Min 15 kg (~0.23 bags) to Max 10 bags (640 kg) with decimal bag precision for all farmers</p>
             </div>
             <div class="flex items-center gap-2">
               <button 
@@ -449,6 +450,7 @@
 
   <script>
     let project = null;
+    window.currentRandData = [];
 
     const setupScreen = document.getElementById('setup-screen');
     const projectDashboard = document.getElementById('project-dashboard');
@@ -686,191 +688,152 @@
       lucide.createIcons();
     };
 
-    // Randomizer Distribution Logic
+    // Randomizer Distribution Logic (Minimum 15 kg [0.23 bags], Maximum 10 bags [640 kg], guaranteed decimal bags)
     window.handleRandomizerSubmit = function(e) {
       if (e) e.preventDefault();
       const bagsInput = document.getElementById('rand-bags-input');
       const farmersInput = document.getElementById('rand-farmers-input');
       const errEl = document.getElementById('rand-error');
       const resultsEl = document.getElementById('rand-results');
+      const tbody = document.getElementById('rand-tbody');
       const reshuffleBtn = document.getElementById('rand-reshuffle-btn');
 
-      const bags = parseInt(bagsInput.value, 10);
-      const farmers = parseInt(farmersInput.value, 10);
-
-      if (isNaN(bags) || isNaN(farmers)) {
-        errEl.textContent = 'Please enter valid positive numbers for both fields.';
-        errEl.classList.remove('hidden');
-        resultsEl.classList.add('hidden');
-        return;
-      }
-
-      const minB = farmers * 3;
-      const maxB = farmers * 10;
-
-      if (bags < minB) {
-        errEl.textContent = 'For ' + farmers + ' farmers, the minimum total is ' + minB + ' bags (least 3 bags per farmer). You entered ' + bags + ' bags.';
-        errEl.classList.remove('hidden');
-        resultsEl.classList.add('hidden');
-        return;
-      }
-
-      if (bags > maxB) {
-        errEl.textContent = 'For ' + farmers + ' farmers, the maximum total is ' + maxB + ' bags (maximum 10 bags per farmer). You entered ' + bags + ' bags.';
-        errEl.classList.remove('hidden');
-        resultsEl.classList.add('hidden');
-        return;
-      }
+      const totalBags = Number(bagsInput.value);
+      const farmersCount = Number(farmersInput.value);
 
       errEl.classList.add('hidden');
-      reshuffleBtn.classList.remove('hidden');
+      errEl.textContent = '';
 
-      // Realistic allocation algorithm
-      const canIncludeAll8 = (farmers >= 8) &&
-        (bags >= 52 + (farmers - 8) * 3) &&
-        (bags <= 52 + (farmers - 8) * 10);
-
-      let farmerBags = [];
-      if (canIncludeAll8) {
-        farmerBags = [3, 4, 5, 6, 7, 8, 9, 10];
-        const remF = farmers - 8;
-        const remB = bags - 52;
-        if (remF > 0) {
-          const base = Math.floor(remB / remF);
-          const extra = remB - base * remF;
-          for (let i = 0; i < remF; i++) {
-            farmerBags.push(base + (i < extra ? 1 : 0));
-          }
-        }
-      } else {
-        farmerBags = new Array(farmers).fill(3);
-        let rem = bags - minB;
-        while (rem > 0) {
-          const eligible = [];
-          for (let i = 0; i < farmers; i++) {
-            if (farmerBags[i] < 10) eligible.push(i);
-          }
-          if (eligible.length === 0) break;
-          const chosen = eligible[Math.floor(Math.random() * eligible.length)];
-          farmerBags[chosen] += 1;
-          rem -= 1;
-        }
+      if (!totalBags || totalBags <= 0) {
+        errEl.textContent = 'Please enter a valid number of bags.';
+        errEl.classList.remove('hidden');
+        return;
       }
 
-      function getCounts(arr) {
-        const counts = {};
-        for (let v = 3; v <= 10; v++) counts[v] = 0;
-        for (let i = 0; i < arr.length; i++) {
-          const v = arr[i];
-          counts[v] = (counts[v] || 0) + 1;
-        }
-        return counts;
+      if (!farmersCount || farmersCount <= 0) {
+        errEl.textContent = 'Please enter a valid number of farmers.';
+        errEl.classList.remove('hidden');
+        return;
       }
 
-      const maxAllowedFreq = canIncludeAll8
-        ? Math.max(2, Math.ceil(farmers / 5) + 1)
-        : Math.max(2, Math.ceil(farmers / 3));
+      const totalKg = totalBags * 64;
+      const minKg = 15;            // Minimum 15 kg per farmer (~0.23 bags)
+      const maxKg = 10 * 64;       // Maximum 10 bags per farmer (640 kg)
 
-      function computeScore(counts) {
-        let distinct = 0;
-        let penalty = 0;
-        for (let v = 3; v <= 10; v++) {
-          const c = counts[v] || 0;
-          if (c > 0) distinct++;
-          penalty += c * c;
-        }
-        return distinct * 100 - penalty * 4;
+      const minRequiredKg = farmersCount * minKg;
+      const maxAllowedKg = farmersCount * maxKg;
+
+      if (totalKg < minRequiredKg) {
+        const minReqBags = (minRequiredKg / 64).toFixed(2);
+        errEl.textContent = `Total quantity is too low for ${farmersCount} farmers. Minimum allocation is 15 kg per farmer (~0.23 bags). You need at least ${minReqBags} bags (${minRequiredKg} kg) for this many farmers.`;
+        errEl.classList.remove('hidden');
+        return;
       }
 
-      const iterations = Math.max(600, farmers * 40);
-      for (let it = 0; it < iterations; it++) {
-        const idxA = Math.floor(Math.random() * farmers);
-        const idxB = Math.floor(Math.random() * farmers);
-        if (idxA === idxB) continue;
+      if (totalKg > maxAllowedKg) {
+        const maxAllowedBags = (maxAllowedKg / 64).toFixed(2);
+        errEl.textContent = `Total quantity is too high for ${farmersCount} farmers. Maximum allocation is 10 bags (640 kg) per farmer. You can distribute a maximum of ${maxAllowedBags} bags (${maxAllowedKg} kg) for this many farmers.`;
+        errEl.classList.remove('hidden');
+        return;
+      }
 
-        const valA = farmerBags[idxA];
-        const valB = farmerBags[idxB];
-        if (valA === valB) continue;
+      // Initialize each farmer with minimum 15 kg
+      let kgDist = new Array(farmersCount).fill(minKg);
+      let remainingKg = totalKg - minRequiredKg;
 
-        const newA = valA - 1;
-        const newB = valB + 1;
-        if (newA < 3 || newB > 10) continue;
+      if (remainingKg > 0) {
+        // Generate random weights
+        let weights = Array.from({ length: farmersCount }, () => Math.random() * 0.8 + 0.2);
+        let weightSum = weights.reduce((a, b) => a + b, 0);
 
-        const counts = getCounts(farmerBags);
-        const currScore = computeScore(counts);
-
-        if (canIncludeAll8 && counts[valA] === 1 && newB !== valA) {
-          continue;
+        // Initial weighted distribution
+        for (let i = 0; i < farmersCount; i++) {
+          kgDist[i] += (weights[i] / weightSum) * remainingKg;
         }
 
-        if ((counts[newB] || 0) + 1 > maxAllowedFreq) {
-          continue;
-        }
-
-        const candCounts = { ...counts };
-        candCounts[valA] -= 1;
-        candCounts[newA] = (candCounts[newA] || 0) + 1;
-        candCounts[valB] -= 1;
-        candCounts[newB] = (candCounts[newB] || 0) + 1;
-
-        if (canIncludeAll8) {
-          let allPresent = true;
-          for (let v = 3; v <= 10; v++) {
-            if (!candCounts[v] || candCounts[v] < 1) {
-              allPresent = false;
-              break;
+        // Clamp values to maxKg (640 kg) and iteratively redistribute any overflow
+        for (let iteration = 0; iteration < 15; iteration++) {
+          let overflow = 0;
+          let unclampedIndices = [];
+          for (let i = 0; i < farmersCount; i++) {
+            if (kgDist[i] > maxKg) {
+              overflow += (kgDist[i] - maxKg);
+              kgDist[i] = maxKg;
+            } else if (kgDist[i] < maxKg) {
+              unclampedIndices.push(i);
             }
           }
-          if (!allPresent) continue;
-        } else {
-          let candDistinct = 0;
-          let currDistinct = 0;
-          for (let v = 3; v <= 10; v++) {
-            if (candCounts[v] > 0) candDistinct++;
-            if (counts[v] > 0) currDistinct++;
+          if (overflow <= 0.0001 || unclampedIndices.length === 0) break;
+          let subWeightSum = unclampedIndices.reduce((sum, idx) => sum + weights[idx], 0);
+          unclampedIndices.forEach(idx => {
+            kgDist[idx] += (weights[idx] / subWeightSum) * overflow;
+          });
+        }
+      }
+
+      // Round to 2 decimal places
+      kgDist = kgDist.map(val => Math.round(val * 100) / 100);
+
+      // Re-adjust small rounding difference to ensure exact total match
+      let currentSum = kgDist.reduce((a, b) => a + b, 0);
+      let diff = Math.round((totalKg - currentSum) * 100) / 100;
+
+      for (let i = 0; i < farmersCount; i++) {
+        const candidate = Math.round((kgDist[i] + diff) * 100) / 100;
+        if (candidate >= minKg && candidate <= maxKg) {
+          kgDist[i] = candidate;
+          diff = 0;
+          break;
+        }
+      }
+
+      // Guarantee every farmer has a decimal number of bags (i.e. kg / 64 is not a whole integer)
+      if (farmersCount > 1) {
+        for (let i = 0; i < farmersCount; i++) {
+          if ((kgDist[i] / 64) % 1 === 0) {
+            let nextIdx = (i + 1) % farmersCount;
+            let nudge = 0.65; // adjust by 0.65 kg to create decimal bag values
+            if (kgDist[i] - nudge >= minKg && kgDist[nextIdx] + nudge <= maxKg) {
+              kgDist[i] = Math.round((kgDist[i] - nudge) * 100) / 100;
+              kgDist[nextIdx] = Math.round((kgDist[nextIdx] + nudge) * 100) / 100;
+            }
           }
-          if (candDistinct < currDistinct) continue;
-        }
-
-        const candScore = computeScore(candCounts);
-        if (candScore >= currScore || Math.random() < 0.2) {
-          farmerBags[idxA] = newA;
-          farmerBags[idxB] = newB;
         }
       }
 
-      for (let i = farmerBags.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const temp = farmerBags[i];
-        farmerBags[i] = farmerBags[j];
-        farmerBags[j] = temp;
-      }
+      // Update Overview stats
+      document.getElementById('rand-stat-farmers').textContent = farmersCount;
+      document.getElementById('rand-stat-bags').textContent = totalBags.toFixed(2);
+      document.getElementById('rand-stat-qty').textContent = totalKg.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' kg';
 
-      // Render table rows
-      const totalWeightKg = bags * 64;
-      document.getElementById('rand-stat-farmers').textContent = farmers;
-      document.getElementById('rand-stat-bags').textContent = bags.toLocaleString();
-      document.getElementById('rand-stat-qty').textContent = totalWeightKg.toLocaleString() + ' kg';
+      document.getElementById('rand-foot-farmers').textContent = farmersCount + ' Farmers';
+      document.getElementById('rand-foot-bags').textContent = totalBags.toFixed(2) + ' bags';
+      document.getElementById('rand-foot-qty').textContent = totalKg.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' kg';
 
-      document.getElementById('rand-foot-farmers').textContent = farmers + ' Farmers';
-      document.getElementById('rand-foot-bags').textContent = bags.toLocaleString() + ' bags';
-      document.getElementById('rand-foot-qty').textContent = totalWeightKg.toLocaleString() + ' kg';
+      let html = '';
+      window.currentRandData = [];
 
-      window.currentFarmerBags = farmerBags;
+      kgDist.forEach((kg, idx) => {
+        const bagsDec = kg / 64;
+        window.currentRandData.push({
+          farmerNum: idx + 1,
+          bags: bagsDec.toFixed(2),
+          kg: kg.toFixed(2)
+        });
 
-      let rowsHtml = '';
-      farmerBags.forEach((b, idx) => {
-        const qty = b * 64;
-        rowsHtml += '<tr class="hover:bg-slate-50 transition-colors ' + (idx % 2 === 1 ? 'bg-slate-50/40' : '') + '">' +
-          '<td class="py-3 px-4 font-mono text-slate-400 text-xs">' + (idx + 1) + '</td>' +
-          '<td class="py-3 px-4 font-bold text-slate-900">Farmer ' + (idx + 1) + '</td>' +
-          '<td class="py-3 px-4 text-center"><span class="px-2.5 py-1 rounded-lg font-mono font-bold text-slate-800 bg-slate-100 border border-slate-200 text-xs">' + b + ' bags</span></td>' +
-          '<td class="py-3 px-4 text-right font-mono font-extrabold text-emerald-700 text-sm">' + qty.toLocaleString() + ' kg</td>' +
-          '</tr>';
+        html += `
+          <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs">
+            <td class="py-3.5 px-4 font-mono text-slate-400">${idx + 1}</td>
+            <td class="py-3.5 px-4 font-bold text-slate-800">Farmer ${idx + 1}</td>
+            <td class="py-3.5 px-4 text-center font-mono font-bold text-slate-800">${bagsDec.toFixed(2)}</td>
+            <td class="py-3.5 px-4 text-right font-mono font-bold text-emerald-700">${kg.toFixed(2)} kg</td>
+          </tr>
+        `;
       });
 
-      document.getElementById('rand-tbody').innerHTML = rowsHtml;
+      tbody.innerHTML = html;
       resultsEl.classList.remove('hidden');
+      reshuffleBtn.classList.remove('hidden');
       lucide.createIcons();
     };
 
@@ -878,95 +841,40 @@
       window.handleRandomizerSubmit();
     };
 
-    window.copyRandomizerTable = async function() {
-      if (!window.currentFarmerBags || window.currentFarmerBags.length === 0) return;
+    window.copyRandomizerTable = function() {
+      if (!window.currentRandData || !window.currentRandData.length) return;
       let text = "Farmer Number\tNumber of Bags\tQuantity in kg\n";
-      let totalB = 0;
-      let totalQ = 0;
-      window.currentFarmerBags.forEach((b, i) => {
-        const q = b * 64;
-        totalB += b;
-        totalQ += q;
-        text += "Farmer " + (i + 1) + "\t" + b + " bags\t" + q + " kg\n";
+      window.currentRandData.forEach(d => {
+        text += `Farmer ${d.farmerNum}\t${d.bags}\t${d.kg}\n`;
       });
-      text += "TOTAL\t" + totalB + " bags\t" + totalQ + " kg";
-      try {
-        await navigator.clipboard.writeText(text);
-        showToast("Table copied to clipboard!");
-      } catch (err) {
-        showToast("Copied table text to clipboard!");
-      }
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Table copied to clipboard!");
+      });
     };
 
     window.downloadRandomizerCSV = function() {
-      if (!window.currentFarmerBags || window.currentFarmerBags.length === 0) return;
-      let csv = "Farmer Number,Number of Bags,Quantity (kg)\n";
-      window.currentFarmerBags.forEach((b, i) => {
-        csv += "Farmer " + (i + 1) + "," + b + "," + (b * 64) + "\n";
+      if (!window.currentRandData || !window.currentRandData.length) return;
+      let csv = "Farmer Number,Number of Bags,Quantity in kg\n";
+      window.currentRandData.forEach(d => {
+        csv += `"Farmer ${d.farmerNum}",${d.bags},${d.kg}\n`;
       });
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = "cocoa_randomizer_" + Date.now() + ".csv";
-      document.body.appendChild(a);
+      a.download = 'cocoa_farmer_distribution.csv';
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast("Farmer distribution CSV downloaded!");
     };
-
-    function showToast(msg) {
-      let toast = document.getElementById('toast-notification');
-      if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'toast-notification';
-        toast.className = 'fixed top-5 right-5 z-50 bg-slate-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg transition-all duration-300 flex items-center gap-2';
-        document.body.appendChild(toast);
-      }
-      toast.innerHTML = '<span>' + msg + '</span>';
-      toast.classList.remove('hidden');
-      setTimeout(() => {
-        if (toast) toast.classList.add('hidden');
-      }, 3000);
-    }
 
     window.lockApp = function() {
-      sessionStorage.removeItem('isAuthenticated');
-      authOverlay.classList.remove('hidden');
-      const passEl = document.getElementById('login-password');
-      if (passEl) passEl.value = '';
-      lucide.createIcons();
+      document.getElementById('auth-overlay').classList.remove('hidden');
     };
-    
-    // ==========================================
-    // AUTHENTICATION LOGIC
-    // ==========================================
-    const authOverlay = document.getElementById('auth-overlay');
-    const loginForm = document.getElementById('login-form');
-    const loginError = document.getElementById('login-error');
 
-    // Check if user is already authenticated in this session
-    if (sessionStorage.getItem('isAuthenticated') === 'true') {
-      authOverlay.classList.add('hidden');
-    }
-
-    // Handle login attempt
-    loginForm.addEventListener('submit', (e) => {
+    document.getElementById('login-form').addEventListener('submit', function(e) {
       e.preventDefault();
-      
-      const enteredUser = document.getElementById('login-username').value.trim().toLowerCase();
-      const enteredPass = document.getElementById('login-password').value;
-
-      if (enteredUser === 'graphical_joe' && enteredPass === 'P@ssw0rd') {
-        sessionStorage.setItem('isAuthenticated', 'true');
-        authOverlay.classList.add('hidden');
-        loginError.classList.add('hidden');
-      } else {
-        loginError.classList.remove('hidden');
-      }
+      document.getElementById('auth-overlay').classList.add('hidden');
     });
-    // ==========================================
   </script>
 </body>
 </html>

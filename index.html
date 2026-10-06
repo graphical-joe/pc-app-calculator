@@ -11,9 +11,9 @@
   <!-- Google Fonts: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
   
-  <!-- Lucide Icons -->
+  <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <style>
@@ -77,7 +77,7 @@
   <!-- ========================================== -->
 
   <!-- Application Header -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
     <div class="max-w-5xl mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
       <div class="flex items-center gap-3">
         <div class="p-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100">
@@ -106,6 +106,14 @@
         >
           <i data-lucide="shuffle" class="w-3.5 h-3.5 text-emerald-600"></i>
           Randomizer
+        </button>
+        <button 
+          id="btn-tab-disp" 
+          onclick="switchTab('dispatcher')" 
+          class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900 cursor-pointer"
+        >
+          <i data-lucide="truck" class="w-3.5 h-3.5 text-emerald-600"></i>
+          Dispatcher
         </button>
       </div>
 
@@ -141,77 +149,81 @@
             </div>
             <div class="min-w-0">
               <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Target</p>
-              <p class="text-xs sm:text-2xl font-bold font-mono text-slate-800 mt-0.5 truncate" id="stat-target-limit">0</p>
+              <p id="stat-target" class="text-xs sm:text-2xl font-black font-mono text-slate-800 mt-0.5 truncate">0</p>
             </div>
           </div>
 
           <div class="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm flex items-center sm:items-start gap-1.5 sm:gap-4">
-            <div class="p-1.5 sm:p-3 bg-amber-50 text-amber-600 rounded-lg sm:rounded-xl border border-amber-100 shrink-0">
-              <i data-lucide="container" class="w-3.5 h-3.5 sm:w-5 sm:h-5"></i>
+            <div class="p-1.5 sm:p-3 bg-amber-50 text-amber-700 rounded-lg sm:rounded-xl border border-amber-100 shrink-0">
+              <i data-lucide="calculator" class="w-3.5 h-3.5 sm:w-5 sm:h-5"></i>
             </div>
             <div class="min-w-0">
               <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Bags</p>
-              <p class="text-xs sm:text-2xl font-bold font-mono text-slate-800 mt-0.5" id="stat-current-bags">0</p>
+              <p id="stat-bags" class="text-xs sm:text-2xl font-black font-mono text-slate-800 mt-0.5 truncate">0</p>
             </div>
           </div>
 
-          <div class="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-emerald-100 shadow-sm flex items-center sm:items-start gap-1.5 sm:gap-4 bg-emerald-50/20">
-            <div class="p-1.5 sm:p-3 bg-emerald-100 text-emerald-700 rounded-lg sm:rounded-xl border border-emerald-100 shrink-0">
+          <!-- Total Quantity Highlight Card -->
+          <div class="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm flex items-center sm:items-start gap-1.5 sm:gap-4">
+            <div class="p-1.5 sm:p-3 bg-emerald-50 text-emerald-700 rounded-lg sm:rounded-xl border border-emerald-100 shrink-0">
               <i data-lucide="scale" class="w-3.5 h-3.5 sm:w-5 sm:h-5"></i>
             </div>
             <div class="min-w-0">
-              <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Total Qty</p>
-              <p class="text-xs sm:text-2xl font-black font-mono text-emerald-600 mt-0.5 truncate" id="stat-total-qty">0</p>
+              <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Qty</p>
+              <p id="total-qty-highlight" class="text-xs sm:text-2xl font-black font-mono text-emerald-600 mt-0.5 truncate">0</p>
             </div>
           </div>
-          
+
         </div>
 
         <!-- Limit Progress Meter -->
         <div class="bg-white p-2.5 sm:p-3.5 rounded-xl border border-slate-200 shadow-sm">
-          <div class="flex justify-between items-center text-[10px] sm:text-xs font-medium text-slate-500 mb-1.5">
-            <span>Capacity Meter</span>
-            <span id="progress-bar-text" class="font-mono">0 / 0 (0%)</span>
+          <div class="flex justify-between items-center text-[10px] sm:text-xs font-semibold text-slate-600 mb-1.5">
+            <span class="flex items-center gap-1 text-slate-700">
+              <span id="meter-dot" class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Production Limit Meter
+            </span>
+            <span id="meter-text" class="font-mono">0 / 0 (0.0%)</span>
           </div>
           <div class="w-full bg-slate-100 h-1 sm:h-1.5 rounded-full overflow-hidden">
-            <div id="progress-bar-fill" class="bg-emerald-600 h-full transition-all duration-300" style="width: 0%"></div>
+            <div id="meter-fill" class="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all duration-500 ease-out" style="width: 0%"></div>
           </div>
         </div>
 
-        <!-- Interactive records container -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[300px] flex flex-col">
+        <!-- Records Grid -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           
-          <!-- Active compact area addition form directly above table headers -->
-          <div class="bg-slate-50 border-b border-slate-200 p-4">
+          <!-- Compact Add Entry Form -->
+          <div class="bg-slate-50 border-b border-slate-100 p-4">
             <form id="record-form" class="flex flex-col sm:flex-row sm:items-center gap-3">
               <div class="flex-1">
                 <input 
                   type="number" 
-                  id="input-area" 
                   step="0.01" 
                   min="0.01" 
                   required 
+                  id="record-area" 
                   placeholder="Enter farm area" 
-                  class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-sm font-bold"
+                  class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm font-bold text-slate-800"
                 >
               </div>
 
-              <!-- Live Yield Estimate Panel -->
-              <div id="live-estimator" class="bg-white px-3 py-1.5 rounded-lg border border-dashed border-slate-200 hidden text-[11px] text-slate-600 flex items-center gap-4">
+              <!-- Live Yield Estimation Feedback -->
+              <div id="live-estimator" class="hidden bg-white px-3 py-1.5 rounded-lg border border-dashed border-slate-200 text-[11px] text-slate-600 flex items-center gap-4">
                 <div>
                   <span>Estimated Bags: </span>
-                  <span class="font-mono font-bold text-slate-800" id="estim-calc-bags">0</span>
+                  <span id="estim-calc-bags" class="font-mono text-slate-800 font-bold">0</span>
                 </div>
                 <div class="w-px h-3 bg-slate-200 hidden sm:block"></div>
                 <div>
-                  <span>Allowed Bags: </span>
-                  <span class="font-mono text-emerald-600 font-bold" id="estim-actual-bags">0</span>
+                  <span id="estim-status-label">Allowed Bags: </span>
+                  <span id="estim-actual-bags" class="font-mono font-bold text-emerald-700">0</span>
                 </div>
               </div>
 
               <button 
                 type="submit" 
-                class="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 text-xs cursor-pointer border border-emerald-700 shrink-0 select-none"
+                class="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-lg font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 text-xs cursor-pointer border border-emerald-700 shrink-0"
               >
                 <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
                 Add Record
@@ -219,67 +231,83 @@
             </form>
           </div>
 
-          <div id="table-empty-state" class="p-12 text-center text-slate-450 my-auto space-y-3">
-            <i data-lucide="table" class="w-8 h-8 text-slate-300 mx-auto"></i>
-            <p class="font-semibold text-slate-600 text-sm">No Records Added</p>
-            <p class="text-xs text-slate-400 max-w-xs mx-auto">Hectare calculations will populate when you submit records above.</p>
+          <!-- Empty State -->
+          <div id="empty-state" class="hidden p-12 text-center text-slate-400 space-y-4">
+            <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
+              <i data-lucide="scale" class="w-8 h-8"></i>
+            </div>
+            <div class="max-w-xs mx-auto space-y-3">
+              <p class="font-bold text-slate-700 text-sm">No Active Area Records</p>
+              <p class="text-xs text-slate-500 mt-1">
+                Once hectares are added, calculation logs, cumulative weights, and bag limiters will populate here instantly.
+              </p>
+            </div>
           </div>
 
-          <!-- Table Wrapper -->
-          <div id="table-wrapper" class="overflow-x-auto hidden">
+          <!-- Records Table -->
+          <div id="table-container" class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-sm">
               <thead>
-                <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase text-slate-500 tracking-wider">
-                  <th class="py-3 px-4 font-normal text-slate-400 w-12">#</th>
-                  <th class="py-3 px-4">Area</th>
-                  <th class="py-3 px-4 text-center">Bags</th>
-                  <th class="py-3 px-4 text-right">Qty</th>
-                  <th class="py-3 px-4 text-right">CF</th>
-                  <th class="py-3 px-4 text-center w-16">Action</th>
+                <tr class="bg-slate-50/70 border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  <th class="py-2.5 px-4 w-12 text-slate-400">#</th>
+                  <th class="py-2.5 px-4 font-bold text-slate-500">Record Identification</th>
+                  <th class="py-2.5 px-4 font-bold text-slate-500">Hectares</th>
+                  <th class="py-2.5 px-4 font-bold text-slate-500">Bags / Allowed</th>
+                  <th class="py-2.5 px-4 font-bold text-slate-500">Weight (kg)</th>
+                  <th class="py-2.5 px-4 font-bold text-slate-500">Cumulative Progress</th>
+                  <th class="py-2.5 px-4 w-16 text-center text-slate-500">Action</th>
                 </tr>
               </thead>
-              <tbody id="records-tbody" class="divide-y divide-slate-100">
-                <!-- Dynamic rows -->
-              </tbody>
+              <tbody id="records-tbody" class="divide-y divide-slate-100"></tbody>
+              <tfoot id="records-tfoot" class="bg-slate-50 border-t-2 border-slate-200 font-bold text-xs">
+                <tr>
+                  <td class="py-3 px-4 text-slate-400 font-mono">TOTAL</td>
+                  <td id="foot-count" class="py-3 px-4 text-slate-900">0 Sections</td>
+                  <td id="foot-area" class="py-3 px-4 font-mono text-slate-800">0.00 ha</td>
+                  <td id="foot-bags" class="py-3 px-4 font-mono text-slate-800">0 bags</td>
+                  <td id="foot-qty" class="py-3 px-4 font-mono text-emerald-700">0 kg</td>
+                  <td id="foot-progress" class="py-3 px-4 font-mono text-slate-800">0 / 0 Cap</td>
+                  <td></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
+
         </div>
 
       </div>
 
-      <!-- First interface: Setup screen -->
-      <div id="setup-screen" class="max-w-md mx-auto my-16 bg-white rounded-3xl border border-slate-200 p-8 shadow-lg space-y-6">
+      <!-- Setup Form (Starts visible if no project) -->
+      <div id="setup-container" class="max-w-md mx-auto my-12 bg-white rounded-3xl border border-slate-200 p-8 shadow-xl space-y-6">
         <div class="text-center space-y-2">
-          <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mx-auto border border-emerald-100">
-            <i data-lucide="calculator" class="w-6 h-6"></i>
+          <div class="w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto border border-emerald-100">
+            <i data-lucide="scale" class="w-6 h-6"></i>
           </div>
-          <h2 class="text-xl font-black text-slate-900 tracking-tight">PC App Calculator</h2>
-          <p class="text-xs text-slate-400">Cocoa Purchaser</p>
+          <h2 class="text-xl font-black text-slate-900 tracking-tight">New Production Session</h2>
+          <p class="text-xs text-slate-500">Configure target limits to begin computing bags and quantities.</p>
         </div>
 
         <form id="setup-form" class="space-y-4">
           <div>
-            <label for="setup-limit" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Target Limit (Bags) *</label>
-            <div class="relative">
-              <input 
-                type="number" 
-                id="setup-limit" 
-                min="1" 
-                required 
-                value="500"
-                placeholder="e.g., 500" 
-                class="w-full pl-4 pr-16 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-base font-bold font-mono"
-              >
-              <span class="absolute right-4 top-3.5 text-xs font-semibold text-slate-400 uppercase">bags</span>
-            </div>
+            <label for="setup-limit" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Target Bags Limit *</label>
+            <input 
+              type="number" 
+              id="setup-limit" 
+              required 
+              min="1" 
+              value="500" 
+              placeholder="e.g. 500" 
+              class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold font-mono text-base text-slate-800"
+            >
+            <p class="text-[11px] text-slate-400 mt-1.5">Sequential entries will cap automatically once this cumulative sum is reached.</p>
           </div>
 
           <button 
             type="submit" 
-            class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+            class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 px-4 rounded-xl font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer text-sm border border-emerald-700"
           >
-            <i data-lucide="play" class="w-4 h-4"></i>
-            Start Project
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            Initialize Session
           </button>
         </form>
       </div>
@@ -290,22 +318,32 @@
     <!-- RANDOMIZER SECTION -->
     <div id="randomizer-section" class="hidden space-y-6">
       <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
-        <div class="flex items-start gap-4">
-          <div class="p-3 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 shrink-0">
-            <i data-lucide="shuffle" class="w-6 h-6"></i>
-          </div>
-          <div>
-            <div class="flex items-center gap-2 flex-wrap">
-              <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Cocoa Bags Randomizer</h2>
-              <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase rounded-md">Updated</span>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-start gap-4">
+            <div class="p-3 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 shrink-0">
+              <i data-lucide="shuffle" class="w-6 h-6"></i>
             </div>
-            <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl">
-              Multiply total cocoa bags by <strong class="text-slate-700 font-mono">64 kg</strong> and distribute quantities unevenly among farmers (minimum <strong>15 kg</strong> [~0.23 bags] up to <strong>10 bags</strong> [640 kg] per farmer, guaranteed decimal bag results for all).
-            </p>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Cocoa Bags Randomizer</h2>
+                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase rounded-md">Distribution</span>
+              </div>
+              <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                Multiply total bags by <strong class="text-slate-700 font-mono">64 kg</strong> and distribute whole bags unevenly among farmers (min. 3 bags, max. 10 bags per farmer).
+              </p>
+            </div>
           </div>
+          <button 
+            id="rand-reshuffle-btn"
+            onclick="shuffleRandomizer()"
+            class="hidden px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer items-center gap-1.5 shrink-0 border border-emerald-700"
+          >
+            <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
+            Shuffle Again
+          </button>
         </div>
 
-        <form id="randomizer-form" onsubmit="handleRandomizerSubmit(event)" class="mt-6 pt-6 border-t border-slate-100">
+        <form id="rand-form" onsubmit="handleRandomizerSubmit(event)" class="mt-6 pt-6 border-t border-slate-100">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div>
               <label for="rand-bags-input" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
@@ -315,11 +353,10 @@
                 <input 
                   type="number" 
                   id="rand-bags-input" 
-                  step="0.01" 
-                  min="0.01" 
+                  min="3" 
                   required 
-                  value="25" 
-                  placeholder="e.g. 25" 
+                  value="50" 
+                  placeholder="e.g. 50" 
                   class="w-full pl-4 pr-16 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold font-mono text-base"
                 >
                 <span class="absolute right-4 top-3.5 text-xs font-semibold text-slate-400 uppercase">bags</span>
@@ -345,43 +382,32 @@
             </div>
           </div>
 
-          <div id="rand-error" class="hidden mt-4 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-medium"></div>
+          <div id="rand-error" class="hidden mt-4 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs"></div>
 
-          <div class="mt-6 flex items-center gap-3">
-            <button 
-              type="submit" 
-              class="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-6 rounded-xl font-bold transition-all shadow-sm flex items-center gap-2 text-sm cursor-pointer border border-emerald-700 select-none"
-            >
-              <i data-lucide="shuffle" class="w-4 h-4"></i>
-              Distribute Unevenly
-            </button>
-            <button 
-              type="button" 
-              onclick="shuffleRandomizer()" 
-              id="rand-reshuffle-btn" 
-              class="hidden px-4 py-3 border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm transition-colors cursor-pointer flex items-center gap-1.5"
-            >
-              <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
-              Re-distribute
-            </button>
-          </div>
+          <button 
+            type="submit" 
+            class="mt-6 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 px-6 rounded-xl font-bold transition-all shadow-md flex items-center gap-2 text-sm cursor-pointer border border-emerald-700 select-none"
+          >
+            <i data-lucide="shuffle" class="w-4 h-4"></i>
+            Distribute Bags Unevenly
+          </button>
         </form>
       </div>
 
-      <!-- Result Card -->
-      <div id="rand-results" class="hidden space-y-4">
+      <!-- Randomizer Results -->
+      <div id="rand-results" class="hidden space-y-6">
         <div class="grid grid-cols-3 gap-2 sm:gap-4">
           <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Farmers</p>
-            <p id="rand-stat-farmers" class="text-xs sm:text-2xl font-black font-mono text-slate-800 mt-0.5">0</p>
+            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Farmers</p>
+            <p id="rand-stat-farmers" class="text-xs sm:text-2xl font-black font-mono text-slate-800 mt-0.5 truncate">0</p>
           </div>
           <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Bags</p>
-            <p id="rand-stat-bags" class="text-xs sm:text-2xl font-black font-mono text-slate-800 mt-0.5">0</p>
+            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Total Bags</p>
+            <p id="rand-stat-bags" class="text-xs sm:text-2xl font-black font-mono text-slate-800 mt-0.5 truncate">0</p>
           </div>
-          <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-emerald-100 shadow-sm bg-emerald-50/20">
-            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Weight (kg)</p>
-            <p id="rand-stat-qty" class="text-xs sm:text-2xl font-black font-mono text-emerald-600 mt-0.5">0 kg</p>
+          <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Total Weight</p>
+            <p id="rand-stat-qty" class="text-xs sm:text-2xl font-black font-mono text-emerald-600 mt-0.5 truncate">0 kg</p>
           </div>
         </div>
 
@@ -389,7 +415,7 @@
           <div class="px-5 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 class="text-sm font-bold text-slate-800">Farmer Distribution Result</h3>
-              <p class="text-xs text-slate-400">Min 15 kg (~0.23 bags) to Max 10 bags (640 kg) with decimal bag precision for all farmers</p>
+              <p class="text-xs text-slate-400">Whole cocoa bags distributed unevenly (3–10 bags each at 64 kg/bag)</p>
             </div>
             <div class="flex items-center gap-2">
               <button 
@@ -436,46 +462,279 @@
     </div>
     <!-- END RANDOMIZER SECTION -->
 
+    <!-- DISPATCHER SECTION -->
+    <div id="dispatcher-section" class="hidden space-y-6">
+      <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-start gap-4">
+            <div class="p-3 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 shrink-0">
+              <i data-lucide="truck" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Cocoa Dispatcher</h2>
+                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase rounded-md">New Feature</span>
+              </div>
+              <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                Accepts the number of cocoa bags multiplied by <strong class="text-slate-700 font-mono">62.5 kg</strong> to determine the total expected weight. Farmer weights are entered sequentially and cannot exceed this total; the final entry will cap and finish the dispatch.
+              </p>
+            </div>
+          </div>
+          <button 
+            id="disp-reset-btn"
+            onclick="resetDispatcher()"
+            class="hidden px-3.5 py-2 border border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100 text-xs font-semibold rounded-xl transition-colors cursor-pointer items-center gap-1.5 shrink-0"
+          >
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+            New Dispatch
+          </button>
+        </div>
+
+        <!-- Setup Form -->
+        <div id="disp-setup-container" class="mt-6 pt-6 border-t border-slate-100">
+          <form id="disp-setup-form" onsubmit="handleStartDispatcher(event)" class="max-w-md">
+            <div>
+              <label for="disp-bags-input" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                Number of Cocoa Bags to Dispatch *
+              </label>
+              <div class="relative">
+                <input 
+                  type="number" 
+                  id="disp-bags-input" 
+                  min="1" 
+                  required 
+                  value="50" 
+                  placeholder="e.g. 50" 
+                  oninput="updateExpectedWeightPreview()"
+                  class="w-full pl-4 pr-16 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold font-mono text-base"
+                >
+                <span class="absolute right-4 top-3.5 text-xs font-semibold text-slate-400 uppercase">bags</span>
+              </div>
+            </div>
+
+            <div class="mt-3 p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl text-xs text-emerald-900 flex items-center justify-between">
+              <span class="text-slate-600 font-medium">Expected Weight Cap:</span>
+              <span id="disp-preview-weight" class="font-mono font-black text-emerald-800 text-sm">3,125.00 kg</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-2">
+              Standard weight: 62.5 kg per bag. This sets the total expected weight that cannot be exceeded.
+            </p>
+
+            <button 
+              type="submit" 
+              class="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-6 rounded-xl font-bold transition-all shadow-sm flex items-center gap-2 text-sm cursor-pointer border border-emerald-700 select-none"
+            >
+              <i data-lucide="truck" class="w-4 h-4"></i>
+              Initialize Dispatcher
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Active Dispatcher Dashboard -->
+      <div id="disp-dashboard" class="hidden space-y-6">
+        <!-- Metric Summary Cards -->
+        <div class="grid grid-cols-3 gap-2 sm:gap-4">
+          <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Expected Weight</p>
+            <p id="disp-stat-expected" class="text-xs sm:text-2xl font-black font-mono text-slate-800 mt-0.5 truncate">0.00 kg</p>
+            <p id="disp-stat-bags-sub" class="text-[10px] text-slate-400 truncate mt-0.5">0 bags × 62.5 kg</p>
+          </div>
+          <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <p class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Dispatched</p>
+            <p id="disp-stat-dispatched" class="text-xs sm:text-2xl font-black font-mono text-slate-800 mt-0.5 truncate">0.00 kg</p>
+            <p id="disp-stat-farmers-sub" class="text-[10px] text-slate-400 truncate mt-0.5">0 farmers logged</p>
+          </div>
+          <div id="disp-stat-rem-card" class="bg-white p-3.5 sm:p-5 rounded-2xl border border-emerald-100 shadow-sm bg-emerald-50/20">
+            <p id="disp-stat-rem-title" class="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Remaining</p>
+            <p id="disp-stat-remaining" class="text-xs sm:text-2xl font-black font-mono text-emerald-600 mt-0.5 truncate">0.00 kg</p>
+            <p id="disp-stat-rem-sub" class="text-[10px] text-slate-400 truncate mt-0.5">Allowance to cap</p>
+          </div>
+        </div>
+
+        <!-- Capacity Meter -->
+        <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="flex justify-between items-center text-[10px] sm:text-xs font-medium text-slate-500 mb-2">
+            <span>Dispatch Weight Capacity Meter</span>
+            <span id="disp-progress-text" class="font-mono">0.00 / 0.00 kg (0%)</span>
+          </div>
+          <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+            <div id="disp-progress-fill" class="bg-emerald-600 h-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Completed Banner - Sticky & Always Visible -->
+        <div id="disp-completed-banner" class="hidden sticky top-16 z-20 p-4 sm:p-5 bg-amber-50/95 backdrop-blur-md border border-amber-200 rounded-2xl shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900">
+          <div class="flex items-start gap-3">
+            <i data-lucide="check-circle-2" class="w-5 h-5 text-amber-700 shrink-0 mt-0.5"></i>
+            <div>
+              <h4 class="font-bold text-sm">Dispatch Completed — Total Expected Weight Reached!</h4>
+              <p class="text-xs text-amber-800/80 mt-0.5">
+                The dispatch has reached the exact maximum limit of <strong id="disp-completed-cap" class="font-mono">0.00 kg</strong>. The final farmer's weight was capped automatically.
+              </p>
+            </div>
+          </div>
+          <button onclick="resetDispatcher()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 shadow-xs">
+            Start New Dispatch
+          </button>
+        </div>
+
+        <!-- Add Farmer Weight Form - Sticky & Always Visible on Each Entry -->
+        <div id="disp-add-container" class="sticky top-16 z-20 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-md transition-all">
+          <!-- Live Always-Visible 3-Metric Summary Bar for Each Entry -->
+          <div class="grid grid-cols-3 gap-2 p-2.5 sm:p-3 bg-slate-50/90 rounded-xl border border-slate-200/80 mb-3.5 shadow-2xs">
+            <div class="min-w-0">
+              <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block truncate">Expected Weight</span>
+              <span id="disp-hud-expected" class="font-mono font-black text-sm sm:text-base text-slate-800 truncate mt-0.5 block">0.00 kg</span>
+            </div>
+            <div class="min-w-0 border-x border-slate-200 px-2 sm:px-3">
+              <span class="text-[10px] uppercase font-bold text-amber-700 tracking-wider block truncate">Dispatched</span>
+              <span id="disp-hud-dispatched" class="font-mono font-black text-sm sm:text-base text-amber-700 truncate mt-0.5 block">0.00 kg</span>
+            </div>
+            <div class="min-w-0">
+              <span class="text-[10px] uppercase font-bold text-emerald-700 tracking-wider block truncate">Remaining</span>
+              <span id="disp-hud-remaining" class="font-mono font-black text-sm sm:text-base text-emerald-600 truncate mt-0.5 block">0.00 kg</span>
+            </div>
+          </div>
+
+          <form id="disp-farmer-form" onsubmit="handleAddFarmerWeight(event)" class="space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+              <div class="flex-1">
+                <label id="disp-farmer-label" for="disp-weight-input" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                  Weight for Farmer #1 (kg) *
+                </label>
+                <div class="relative">
+                  <input 
+                    type="number" 
+                    id="disp-weight-input" 
+                    step="0.01" 
+                    min="0.01" 
+                    required 
+                    placeholder="Enter farmer weight (e.g. 64.50)" 
+                    oninput="handleWeightInputPreview()"
+                    class="w-full pl-4 pr-16 py-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold font-mono text-base shadow-2xs"
+                  >
+                  <span class="absolute right-4 top-3.5 text-xs font-semibold text-slate-400 uppercase">kg</span>
+                </div>
+              </div>
+              <button 
+                type="submit" 
+                class="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-6 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-2 text-sm cursor-pointer border border-emerald-700 shrink-0 select-none h-[46px]"
+              >
+                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                Add Farmer Weight
+              </button>
+            </div>
+            <div id="disp-weight-preview-note" class="hidden p-2.5 sm:p-3 rounded-xl text-xs border"></div>
+          </form>
+        </div>
+
+        <!-- Table -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">Farmer Dispatched Weights Log</h3>
+              <p class="text-xs text-slate-400">Weights tracked up to 2 decimal places. Capped when total expected weight is met.</p>
+            </div>
+            <div id="disp-table-actions" class="hidden items-center gap-2 flex-wrap">
+              <button onclick="toggleDispatcherSortOrder()" id="disp-sort-btn" class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer shadow-xs">
+                <i data-lucide="arrow-up-down" class="w-3.5 h-3.5 text-slate-500"></i>
+                <span id="disp-sort-text">Newest First</span>
+              </button>
+              <button onclick="copyDispatcherTable()" class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer shadow-xs">
+                <i data-lucide="clipboard" class="w-3.5 h-3.5"></i>
+                Copy Table
+              </button>
+              <button onclick="downloadDispatcherCSV()" class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer shadow-xs">
+                <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-600"></i>
+                Export CSV
+              </button>
+            </div>
+          </div>
+
+          <div id="disp-empty-table" class="p-12 text-center text-slate-400 space-y-2">
+            <i data-lucide="truck" class="w-8 h-8 text-slate-300 mx-auto"></i>
+            <p class="font-semibold text-slate-600 text-sm">No Farmer Weights Added Yet</p>
+            <p class="text-xs text-slate-400 max-w-xs mx-auto">Enter weights for farmers above. They will populate sequentially in the table below.</p>
+          </div>
+
+          <div id="disp-table-wrapper" class="overflow-x-auto max-h-[500px] overflow-y-auto hidden">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead class="bg-slate-50/95 backdrop-blur-xs sticky top-0 z-10 border-b border-slate-200 text-xs font-bold uppercase text-slate-500 tracking-wider shadow-2xs">
+                <tr class="bg-slate-50/70 border-b border-slate-200 text-xs font-bold uppercase text-slate-500 tracking-wider">
+                  <th class="py-3 px-4 w-12 text-slate-400">#</th>
+                  <th class="py-3 px-4">Farmer Number</th>
+                  <th class="py-3 px-4 text-right">Entered (kg)</th>
+                  <th class="py-3 px-4 text-right">Dispatched (kg)</th>
+                  <th class="py-3 px-4 text-right">Cumulative (kg)</th>
+                  <th class="py-3 px-4 text-right">Remaining (kg)</th>
+                  <th class="py-3 px-4 text-center w-16">Action</th>
+                </tr>
+              </thead>
+              <tbody id="disp-tbody" class="divide-y divide-slate-100"></tbody>
+              <tfoot>
+                <tr class="bg-slate-50 border-t-2 border-slate-200 font-bold text-xs">
+                  <td class="py-3.5 px-4 text-slate-400 font-mono">TOTAL</td>
+                  <td id="disp-foot-farmers" class="py-3.5 px-4 text-slate-900 font-extrabold">0 Farmers</td>
+                  <td id="disp-foot-entered" class="py-3.5 px-4 text-right font-mono text-slate-500">0.00 kg</td>
+                  <td id="disp-foot-dispatched" class="py-3.5 px-4 text-right font-mono text-emerald-700 text-sm font-black">0.00 kg</td>
+                  <td id="disp-foot-cap" colspan="2" class="py-3.5 px-4 text-right font-mono text-slate-600 text-xs">Cap: 0.00 kg</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END DISPATCHER SECTION -->
+
   </main>
 
-  <!-- Sticky Pinned Total Widget -->
-  <div id="sticky-total-panel" class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-3.5 px-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] z-40 hidden">
+  <!-- Pinned Persistent Bottom Widget -->
+  <div id="sticky-pinned-widget" class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-3.5 px-4 shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.08)] z-30 flex items-center justify-center">
     <div class="max-w-5xl mx-auto w-full flex justify-center items-center">
-      <button onclick="resetProject()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer border border-emerald-700 select-none">
-        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+      <button 
+        id="pinned-reset-btn"
+        onclick="resetProject()" 
+        class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer border border-emerald-700"
+      >
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
         New Purchases
       </button>
     </div>
   </div>
 
+  <!-- Application Logic -->
   <script>
+    // State initialization
     let project = null;
-    window.currentRandData = [];
+    let dispatcherProject = null;
 
-    const setupScreen = document.getElementById('setup-screen');
+    try {
+      const savedProj = localStorage.getItem('cocoa_farming_project');
+      if (savedProj) project = JSON.parse(savedProj);
+      const savedDisp = localStorage.getItem('cocoa_dispatcher_project');
+      if (savedDisp) dispatcherProject = JSON.parse(savedDisp);
+    } catch(e) {
+      console.error(e);
+    }
+
+    // DOM Elements
+    const setupContainer = document.getElementById('setup-container');
     const projectDashboard = document.getElementById('project-dashboard');
     const setupForm = document.getElementById('setup-form');
     const recordForm = document.getElementById('record-form');
-    const recordsTbody = document.getElementById('records-tbody');
-    const tableEmptyState = document.getElementById('table-empty-state');
-    const tableWrapper = document.getElementById('table-wrapper');
-    const stickyPanel = document.getElementById('sticky-total-panel');
-
-    const inputArea = document.getElementById('input-area');
+    const inputArea = document.getElementById('record-area');
     const liveEstimator = document.getElementById('live-estimator');
     const estimCalcBags = document.getElementById('estim-calc-bags');
     const estimActualBags = document.getElementById('estim-actual-bags');
-
-    window.addEventListener('load', () => {
-      const saved = localStorage.getItem('cocoa_farming_project');
-      if (saved) {
-        try {
-          project = JSON.parse(saved);
-        } catch(e) {}
-      }
-      render();
-      lucide.createIcons();
-    });
+    const estimStatusLabel = document.getElementById('estim-status-label');
+    const emptyState = document.getElementById('empty-state');
+    const tableContainer = document.getElementById('table-container');
+    const recordsTbody = document.getElementById('records-tbody');
+    const headerActions = document.getElementById('header-actions');
+    const stickyPinned = document.getElementById('sticky-pinned-widget');
 
     function computeAndRecalculate() {
       if (!project) return;
@@ -539,7 +798,8 @@
       };
 
       computeAndRecalculate();
-      render();
+      renderApp();
+      showToast('Calculator session started.');
     });
 
     recordForm.addEventListener('submit', (e) => {
@@ -547,293 +807,339 @@
       if (!project) return;
 
       const area = Number(inputArea.value);
-      const newRawRecord = {
+      if (!area || area <= 0) return;
+
+      project.rawRecords.push({
         id: 'rec_' + Date.now(),
-        sectionName: '',
+        sectionName: 'Record #' + (project.rawRecords.length + 1),
         area,
         timestamp: new Date().toISOString()
-      };
+      });
 
-      project.rawRecords.push(newRawRecord);
       computeAndRecalculate();
-
       inputArea.value = '';
       liveEstimator.classList.add('hidden');
-      render();
+      renderApp();
+      showToast('Farm record added successfully.');
     });
 
     window.deleteRecord = function(id) {
       if (!project) return;
       project.rawRecords = project.rawRecords.filter(r => r.id !== id);
       computeAndRecalculate();
-      render();
+      renderApp();
+      showToast('Farm record removed.');
     };
 
     window.resetProject = function() {
       project = null;
       localStorage.removeItem('cocoa_farming_project');
-      const setupLimitInput = document.getElementById('setup-limit');
-      if (setupLimitInput) {
-        setupLimitInput.value = '500';
-      }
-      render();
+      renderApp();
+      showToast('Calculator session cleared.');
     };
 
-    window.addEventListener('scroll', () => {
-      if (!project) return;
-      if (window.scrollY > 80) {
-        stickyPanel.classList.remove('hidden');
-      } else {
-        stickyPanel.classList.add('hidden');
-      }
-    });
-
-    function render() {
-      const headerActions = document.getElementById('header-actions');
+    function renderApp() {
       if (!project) {
-        setupScreen.classList.remove('hidden');
+        setupContainer.classList.remove('hidden');
         projectDashboard.classList.add('hidden');
-        stickyPanel.classList.add('hidden');
+        stickyPinned.classList.add('hidden');
         headerActions.innerHTML = '';
         return;
       }
 
-      setupScreen.classList.add('hidden');
+      setupContainer.classList.add('hidden');
       projectDashboard.classList.remove('hidden');
+      stickyPinned.classList.remove('hidden');
+
+      const totalArea = project.records.reduce((sum, r) => sum + r.area, 0);
+      const totalBags = project.records.reduce((sum, r) => sum + r.actualBags, 0);
+      const totalQty = project.records.reduce((sum, r) => sum + r.qty, 0);
+      const percentage = project.targetLimit > 0 ? Math.min(100, (totalBags / project.targetLimit) * 100) : 0;
+
+      document.getElementById('stat-target').textContent = project.targetLimit.toLocaleString();
+      document.getElementById('stat-bags').textContent = totalBags.toLocaleString();
+      document.getElementById('total-qty-highlight').textContent = totalQty.toLocaleString();
+
+      document.getElementById('meter-text').textContent = totalBags.toLocaleString() + ' / ' + project.targetLimit.toLocaleString() + ' (' + percentage.toFixed(1) + '%)';
+      const meterFill = document.getElementById('meter-fill');
+      meterFill.style.width = percentage + '%';
+
+      if (totalBags >= project.targetLimit) {
+        meterFill.className = 'h-full bg-amber-500 transition-all duration-500 ease-out';
+        document.getElementById('meter-dot').className = 'w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-500';
+      } else {
+        meterFill.className = 'h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all duration-500 ease-out';
+        document.getElementById('meter-dot').className = 'w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse';
+      }
 
       headerActions.innerHTML = `
         <button 
           onclick="resetProject()" 
-          class="flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 text-slate-700 bg-slate-50 text-xs font-semibold rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+          class="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
         >
-          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
           New Purchases
         </button>
       `;
 
-      const limit = project.targetLimit;
-      const records = project.records;
-      const totalBags = records.reduce((sum, r) => sum + r.actualBags, 0);
-      const totalQty = totalBags * 64;
-      const pct = limit > 0 ? Math.min(100, Math.round((totalBags / limit) * 100)) : 0;
-
-      document.getElementById('stat-target-limit').textContent = limit.toLocaleString();
-      document.getElementById('stat-current-bags').textContent = totalBags.toLocaleString();
-      
-      const qtyLabel = totalQty.toLocaleString();
-      document.getElementById('stat-total-qty').textContent = qtyLabel;
-
-      document.getElementById('progress-bar-text').textContent = totalBags.toLocaleString() + ' / ' + limit.toLocaleString() + ' (' + pct + '%)';
-      document.getElementById('progress-bar-fill').style.width = pct + '%';
-
-      if (records.length === 0) {
-        tableEmptyState.classList.remove('hidden');
-        tableWrapper.classList.add('hidden');
+      if (project.records.length === 0) {
+        emptyState.classList.remove('hidden');
+        tableContainer.classList.add('hidden');
       } else {
-        tableEmptyState.classList.add('hidden');
-        tableWrapper.classList.remove('hidden');
-        
-        let htmlStr = '';
-        records.forEach((rec, idx) => {
-          const isRowCapped = rec.actualBags < rec.calculatedBags;
-          htmlStr += `
-            <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs ${idx % 2 === 1 ? 'bg-slate-50/40' : ''}">
-              <td class="py-4 px-4 font-mono text-slate-400">${idx + 1}</td>
-              <td class="py-4 px-4 font-bold text-slate-800 font-mono">${rec.area}</td>
-              <td class="py-4 px-4 text-center font-bold">
-                <span class="font-mono ${isRowCapped ? 'text-amber-600' : 'text-slate-800'}">
-                  ${rec.actualBags}
-                </span>
-                ${isRowCapped ? '<span class="block text-[9px] font-bold text-amber-500">Capped</span>' : ''}
+        emptyState.classList.add('hidden');
+        tableContainer.classList.remove('hidden');
+
+        let rowsHtml = '';
+        project.records.forEach((r, idx) => {
+          const isCapped = r.calculatedBags > r.actualBags;
+          rowsHtml += `
+            <tr class="hover:bg-slate-50 transition-colors ${idx % 2 === 1 ? 'bg-slate-50/40' : ''}">
+              <td class="py-3 px-4 font-mono text-slate-400 text-xs">${idx + 1}</td>
+              <td class="py-3 px-4 font-bold text-slate-800">${r.sectionName}</td>
+              <td class="py-3 px-4 font-mono text-slate-700">${r.area.toFixed(2)} ha</td>
+              <td class="py-3 px-4 font-mono font-bold ${isCapped ? 'text-amber-600' : 'text-slate-800'}">
+                ${r.actualBags} bags
+                ${isCapped ? '<span class="text-[9px] bg-amber-100 text-amber-800 px-1 rounded ml-1 font-sans">capped</span>' : ''}
               </td>
-              <td class="py-4 px-4 text-right font-bold font-mono text-slate-900">${rec.qty.toLocaleString()}</td>
-              <td class="py-4 px-4 text-right font-mono text-slate-600">${rec.cumulativeBags.toLocaleString()}</td>
-              <td class="py-4 px-4 text-center">
-                <button 
-                  onclick="deleteRecord('${rec.id}')"
-                  class="text-slate-400 hover:text-rose-600 cursor-pointer p-1"
-                >
+              <td class="py-3 px-4 font-mono font-extrabold text-emerald-700">${r.qty.toLocaleString()} kg</td>
+              <td class="py-3 px-4 font-mono text-slate-500 text-xs">${r.cumulativeBags} / ${project.targetLimit}</td>
+              <td class="py-3 px-4 text-center">
+                <button onclick="deleteRecord('${r.id}')" class="text-slate-400 hover:text-rose-600 cursor-pointer p-1 transition-colors">
                   <i data-lucide="trash" class="w-4 h-4"></i>
                 </button>
               </td>
             </tr>
           `;
         });
-        document.getElementById('records-tbody').innerHTML = htmlStr;
+
+        recordsTbody.innerHTML = rowsHtml;
+        document.getElementById('foot-count').textContent = project.records.length + ' Sections';
+        document.getElementById('foot-area').textContent = totalArea.toFixed(2) + ' ha';
+        document.getElementById('foot-bags').textContent = totalBags.toLocaleString() + ' bags';
+        document.getElementById('foot-qty').textContent = totalQty.toLocaleString() + ' kg';
+        document.getElementById('foot-progress').textContent = totalBags.toLocaleString() + ' / ' + project.targetLimit.toLocaleString() + ' Cap';
       }
 
       lucide.createIcons();
     }
 
-    // Tab switching logic
+    // ==========================================
+    // TAB SWITCHER LOGIC
+    // ==========================================
     window.switchTab = function(tab) {
       const calcSec = document.getElementById('calculator-section');
       const randSec = document.getElementById('randomizer-section');
+      const dispSec = document.getElementById('dispatcher-section');
+      const stickyP = document.getElementById('sticky-pinned-widget');
+
       const btnCalc = document.getElementById('btn-tab-calc');
       const btnRand = document.getElementById('btn-tab-rand');
-      const stickyP = document.getElementById('sticky-total-panel');
+      const btnDisp = document.getElementById('btn-tab-disp');
+
+      const inactiveClass = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900 cursor-pointer';
+      const activeClass = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-white text-emerald-800 shadow-xs cursor-pointer';
+
+      calcSec.classList.add('hidden');
+      randSec.classList.add('hidden');
+      if (dispSec) dispSec.classList.add('hidden');
+      stickyP.classList.add('hidden');
+
+      btnCalc.className = inactiveClass;
+      btnRand.className = inactiveClass;
+      if (btnDisp) btnDisp.className = inactiveClass;
 
       if (tab === 'randomizer') {
-        calcSec.classList.add('hidden');
         randSec.classList.remove('hidden');
-        stickyP.classList.add('hidden');
-        btnCalc.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900 cursor-pointer';
-        btnRand.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-white text-emerald-800 shadow-xs cursor-pointer';
+        btnRand.className = activeClass;
+      } else if (tab === 'dispatcher') {
+        if (dispSec) dispSec.classList.remove('hidden');
+        if (btnDisp) btnDisp.className = activeClass;
+        renderDispatcher();
       } else {
         calcSec.classList.remove('hidden');
-        randSec.classList.add('hidden');
-        btnCalc.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-white text-emerald-800 shadow-xs cursor-pointer';
-        btnRand.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900 cursor-pointer';
+        btnCalc.className = activeClass;
+        if (project) stickyP.classList.remove('hidden');
       }
       lucide.createIcons();
     };
 
-    // Randomizer Distribution Logic (Minimum 15 kg [0.23 bags], Maximum 10 bags [640 kg], guaranteed decimal bags)
+    // ==========================================
+    // RANDOMIZER LOGIC
+    // ==========================================
     window.handleRandomizerSubmit = function(e) {
       if (e) e.preventDefault();
       const bagsInput = document.getElementById('rand-bags-input');
       const farmersInput = document.getElementById('rand-farmers-input');
       const errEl = document.getElementById('rand-error');
       const resultsEl = document.getElementById('rand-results');
-      const tbody = document.getElementById('rand-tbody');
       const reshuffleBtn = document.getElementById('rand-reshuffle-btn');
 
-      const totalBags = Number(bagsInput.value);
-      const farmersCount = Number(farmersInput.value);
+      const bags = parseInt(bagsInput.value, 10);
+      const farmers = parseInt(farmersInput.value, 10);
+
+      if (isNaN(bags) || isNaN(farmers)) {
+        errEl.textContent = 'Please enter valid positive numbers for both fields.';
+        errEl.classList.remove('hidden');
+        resultsEl.classList.add('hidden');
+        return;
+      }
+
+      const minB = farmers * 3;
+      const maxB = farmers * 10;
+
+      if (bags < minB) {
+        errEl.textContent = 'For ' + farmers + ' farmers, the minimum total is ' + minB + ' bags (least 3 bags per farmer). You entered ' + bags + ' bags.';
+        errEl.classList.remove('hidden');
+        resultsEl.classList.add('hidden');
+        return;
+      }
+
+      if (bags > maxB) {
+        errEl.textContent = 'For ' + farmers + ' farmers, the maximum total is ' + maxB + ' bags (maximum 10 bags per farmer). You entered ' + bags + ' bags.';
+        errEl.classList.remove('hidden');
+        resultsEl.classList.add('hidden');
+        return;
+      }
 
       errEl.classList.add('hidden');
-      errEl.textContent = '';
+      reshuffleBtn.classList.remove('hidden');
 
-      if (!totalBags || totalBags <= 0) {
-        errEl.textContent = 'Please enter a valid number of bags.';
-        errEl.classList.remove('hidden');
-        return;
-      }
+      const canIncludeAll8 = (farmers >= 8) &&
+        (bags >= 52 + (farmers - 8) * 3) &&
+        (bags <= 52 + (farmers - 8) * 10);
 
-      if (!farmersCount || farmersCount <= 0) {
-        errEl.textContent = 'Please enter a valid number of farmers.';
-        errEl.classList.remove('hidden');
-        return;
-      }
-
-      const totalKg = totalBags * 64;
-      const minKg = 15;            // Minimum 15 kg per farmer (~0.23 bags)
-      const maxKg = 10 * 64;       // Maximum 10 bags per farmer (640 kg)
-
-      const minRequiredKg = farmersCount * minKg;
-      const maxAllowedKg = farmersCount * maxKg;
-
-      if (totalKg < minRequiredKg) {
-        const minReqBags = (minRequiredKg / 64).toFixed(2);
-        errEl.textContent = `Total quantity is too low for ${farmersCount} farmers. Minimum allocation is 15 kg per farmer (~0.23 bags). You need at least ${minReqBags} bags (${minRequiredKg} kg) for this many farmers.`;
-        errEl.classList.remove('hidden');
-        return;
-      }
-
-      if (totalKg > maxAllowedKg) {
-        const maxAllowedBags = (maxAllowedKg / 64).toFixed(2);
-        errEl.textContent = `Total quantity is too high for ${farmersCount} farmers. Maximum allocation is 10 bags (640 kg) per farmer. You can distribute a maximum of ${maxAllowedBags} bags (${maxAllowedKg} kg) for this many farmers.`;
-        errEl.classList.remove('hidden');
-        return;
-      }
-
-      // Initialize each farmer with minimum 15 kg
-      let kgDist = new Array(farmersCount).fill(minKg);
-      let remainingKg = totalKg - minRequiredKg;
-
-      if (remainingKg > 0) {
-        // Generate random weights
-        let weights = Array.from({ length: farmersCount }, () => Math.random() * 0.8 + 0.2);
-        let weightSum = weights.reduce((a, b) => a + b, 0);
-
-        // Initial weighted distribution
-        for (let i = 0; i < farmersCount; i++) {
-          kgDist[i] += (weights[i] / weightSum) * remainingKg;
-        }
-
-        // Clamp values to maxKg (640 kg) and iteratively redistribute any overflow
-        for (let iteration = 0; iteration < 15; iteration++) {
-          let overflow = 0;
-          let unclampedIndices = [];
-          for (let i = 0; i < farmersCount; i++) {
-            if (kgDist[i] > maxKg) {
-              overflow += (kgDist[i] - maxKg);
-              kgDist[i] = maxKg;
-            } else if (kgDist[i] < maxKg) {
-              unclampedIndices.push(i);
-            }
-          }
-          if (overflow <= 0.0001 || unclampedIndices.length === 0) break;
-          let subWeightSum = unclampedIndices.reduce((sum, idx) => sum + weights[idx], 0);
-          unclampedIndices.forEach(idx => {
-            kgDist[idx] += (weights[idx] / subWeightSum) * overflow;
-          });
-        }
-      }
-
-      // Round to 2 decimal places
-      kgDist = kgDist.map(val => Math.round(val * 100) / 100);
-
-      // Re-adjust small rounding difference to ensure exact total match
-      let currentSum = kgDist.reduce((a, b) => a + b, 0);
-      let diff = Math.round((totalKg - currentSum) * 100) / 100;
-
-      for (let i = 0; i < farmersCount; i++) {
-        const candidate = Math.round((kgDist[i] + diff) * 100) / 100;
-        if (candidate >= minKg && candidate <= maxKg) {
-          kgDist[i] = candidate;
-          diff = 0;
-          break;
-        }
-      }
-
-      // Guarantee every farmer has a decimal number of bags (i.e. kg / 64 is not a whole integer)
-      if (farmersCount > 1) {
-        for (let i = 0; i < farmersCount; i++) {
-          if ((kgDist[i] / 64) % 1 === 0) {
-            let nextIdx = (i + 1) % farmersCount;
-            let nudge = 0.65; // adjust by 0.65 kg to create decimal bag values
-            if (kgDist[i] - nudge >= minKg && kgDist[nextIdx] + nudge <= maxKg) {
-              kgDist[i] = Math.round((kgDist[i] - nudge) * 100) / 100;
-              kgDist[nextIdx] = Math.round((kgDist[nextIdx] + nudge) * 100) / 100;
-            }
+      let farmerBags = [];
+      if (canIncludeAll8) {
+        farmerBags = [3, 4, 5, 6, 7, 8, 9, 10];
+        const remF = farmers - 8;
+        const remB = bags - 52;
+        if (remF > 0) {
+          const base = Math.floor(remB / remF);
+          const extra = remB - base * remF;
+          for (let i = 0; i < remF; i++) {
+            farmerBags.push(base + (i < extra ? 1 : 0));
           }
         }
+      } else {
+        farmerBags = new Array(farmers).fill(3);
+        let rem = bags - minB;
+        while (rem > 0) {
+          const eligible = [];
+          for (let i = 0; i < farmers; i++) {
+            if (farmerBags[i] < 10) eligible.push(i);
+          }
+          if (eligible.length === 0) break;
+          const chosen = eligible[Math.floor(Math.random() * eligible.length)];
+          farmerBags[chosen] += 1;
+          rem -= 1;
+        }
       }
 
-      // Update Overview stats
-      document.getElementById('rand-stat-farmers').textContent = farmersCount;
-      document.getElementById('rand-stat-bags').textContent = totalBags.toFixed(2);
-      document.getElementById('rand-stat-qty').textContent = totalKg.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' kg';
+      function getCounts(arr) {
+        const counts = {};
+        for (let v = 3; v <= 10; v++) counts[v] = 0;
+        for (let i = 0; i < arr.length; i++) {
+          const v = arr[i];
+          counts[v] = (counts[v] || 0) + 1;
+        }
+        return counts;
+      }
 
-      document.getElementById('rand-foot-farmers').textContent = farmersCount + ' Farmers';
-      document.getElementById('rand-foot-bags').textContent = totalBags.toFixed(2) + ' bags';
-      document.getElementById('rand-foot-qty').textContent = totalKg.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' kg';
+      const maxAllowedFreq = canIncludeAll8
+        ? Math.max(2, Math.ceil(farmers / 5) + 1)
+        : Math.max(2, Math.ceil(farmers / 3));
 
-      let html = '';
-      window.currentRandData = [];
+      function computeScore(counts) {
+        let distinct = 0;
+        let penalty = 0;
+        for (let v = 3; v <= 10; v++) {
+          const c = counts[v] || 0;
+          if (c > 0) distinct++;
+          penalty += c * c;
+        }
+        return distinct * 100 - penalty * 4;
+      }
 
-      kgDist.forEach((kg, idx) => {
-        const bagsDec = kg / 64;
-        window.currentRandData.push({
-          farmerNum: idx + 1,
-          bags: bagsDec.toFixed(2),
-          kg: kg.toFixed(2)
-        });
+      for (let iter = 0; iter < 1200; iter++) {
+        const idxA = Math.floor(Math.random() * farmers);
+        const idxB = Math.floor(Math.random() * farmers);
+        if (idxA === idxB) continue;
 
-        html += `
-          <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs">
-            <td class="py-3.5 px-4 font-mono text-slate-400">${idx + 1}</td>
-            <td class="py-3.5 px-4 font-bold text-slate-800">Farmer ${idx + 1}</td>
-            <td class="py-3.5 px-4 text-center font-mono font-bold text-slate-800">${bagsDec.toFixed(2)}</td>
-            <td class="py-3.5 px-4 text-right font-mono font-bold text-emerald-700">${kg.toFixed(2)} kg</td>
-          </tr>
-        `;
+        const valA = farmerBags[idxA];
+        const valB = farmerBags[idxB];
+        const delta = Math.random() < 0.5 ? 1 : -1;
+
+        const newA = valA + delta;
+        const newB = valB - delta;
+
+        if (newA < 3 || newA > 10 || newB < 3 || newB > 10) continue;
+
+        const counts = getCounts(farmerBags);
+        const currScore = computeScore(counts);
+
+        const candCounts = { ...counts };
+        candCounts[valA] -= 1;
+        candCounts[newA] = (candCounts[newA] || 0) + 1;
+        candCounts[valB] -= 1;
+        candCounts[newB] = (candCounts[newB] || 0) + 1;
+
+        if (canIncludeAll8) {
+          let allPresent = true;
+          for (let v = 3; v <= 10; v++) {
+            if (!candCounts[v] || candCounts[v] < 1) {
+              allPresent = false;
+              break;
+            }
+          }
+          if (!allPresent) continue;
+        } else {
+          let candDistinct = 0;
+          let currDistinct = 0;
+          for (let v = 3; v <= 10; v++) {
+            if (candCounts[v] > 0) candDistinct++;
+            if (counts[v] > 0) currDistinct++;
+          }
+          if (candDistinct < currDistinct) continue;
+        }
+
+        const candScore = computeScore(candCounts);
+        if (candScore >= currScore || Math.random() < 0.2) {
+          farmerBags[idxA] = newA;
+          farmerBags[idxB] = newB;
+        }
+      }
+
+      for (let i = farmerBags.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = farmerBags[i];
+        farmerBags[i] = farmerBags[j];
+        farmerBags[j] = temp;
+      }
+
+      const totalWeightKg = bags * 64;
+      document.getElementById('rand-stat-farmers').textContent = farmers;
+      document.getElementById('rand-stat-bags').textContent = bags.toLocaleString();
+      document.getElementById('rand-stat-qty').textContent = totalWeightKg.toLocaleString() + ' kg';
+
+      document.getElementById('rand-foot-farmers').textContent = farmers + ' Farmers';
+      document.getElementById('rand-foot-bags').textContent = bags.toLocaleString() + ' bags';
+      document.getElementById('rand-foot-qty').textContent = totalWeightKg.toLocaleString() + ' kg';
+
+      window.currentFarmerBags = farmerBags;
+
+      let rowsHtml = '';
+      farmerBags.forEach((b, idx) => {
+        const qty = b * 64;
+        rowsHtml += '<tr class="hover:bg-slate-50 transition-colors ' + (idx % 2 === 1 ? 'bg-slate-50/40' : '') + '">' +
+          '<td class="py-3 px-4 font-mono text-slate-400 text-xs">' + (idx + 1) + '</td>' +
+          '<td class="py-3 px-4 font-bold text-slate-900">Farmer ' + (idx + 1) + '</td>' +
+          '<td class="py-3 px-4 text-center"><span class="px-2.5 py-1 rounded-lg font-mono font-bold text-slate-800 bg-slate-100 border border-slate-200 text-xs">' + b + ' bags</span></td>' +
+          '<td class="py-3 px-4 text-right font-mono font-extrabold text-emerald-700 text-sm">' + qty.toLocaleString() + ' kg</td>' +
+          '</tr>';
       });
 
-      tbody.innerHTML = html;
+      document.getElementById('rand-tbody').innerHTML = rowsHtml;
       resultsEl.classList.remove('hidden');
-      reshuffleBtn.classList.remove('hidden');
       lucide.createIcons();
     };
 
@@ -841,40 +1147,431 @@
       window.handleRandomizerSubmit();
     };
 
-    window.copyRandomizerTable = function() {
-      if (!window.currentRandData || !window.currentRandData.length) return;
+    window.copyRandomizerTable = async function() {
+      if (!window.currentFarmerBags || window.currentFarmerBags.length === 0) return;
       let text = "Farmer Number\tNumber of Bags\tQuantity in kg\n";
-      window.currentRandData.forEach(d => {
-        text += `Farmer ${d.farmerNum}\t${d.bags}\t${d.kg}\n`;
+      let totalB = 0;
+      let totalQ = 0;
+      window.currentFarmerBags.forEach((b, i) => {
+        const q = b * 64;
+        totalB += b;
+        totalQ += q;
+        text += "Farmer " + (i + 1) + "\t" + b + " bags\t" + q + " kg\n";
       });
-      navigator.clipboard.writeText(text).then(() => {
-        alert("Table copied to clipboard!");
-      });
+      text += "TOTAL\t" + totalB + " bags\t" + totalQ + " kg";
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast("Table copied to clipboard!");
+      } catch (err) {
+        showToast("Copied table text to clipboard!");
+      }
     };
 
     window.downloadRandomizerCSV = function() {
-      if (!window.currentRandData || !window.currentRandData.length) return;
-      let csv = "Farmer Number,Number of Bags,Quantity in kg\n";
-      window.currentRandData.forEach(d => {
-        csv += `"Farmer ${d.farmerNum}",${d.bags},${d.kg}\n`;
+      if (!window.currentFarmerBags || window.currentFarmerBags.length === 0) return;
+      let csv = "Farmer Number,Number of Bags,Quantity (kg)\n";
+      window.currentFarmerBags.forEach((b, i) => {
+        csv += "Farmer " + (i + 1) + "," + b + "," + (b * 64) + "\n";
       });
-      const blob = new Blob([csv], { type: 'text/csv' });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'cocoa_farmer_distribution.csv';
+      a.download = "cocoa_randomizer_" + Date.now() + ".csv";
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      showToast("Farmer distribution CSV downloaded!");
     };
+
+    // ==========================================
+    // DISPATCHER LOGIC
+    // ==========================================
+    window.dispatcherSortOrder = 'newest';
+
+    window.toggleDispatcherSortOrder = function() {
+      window.dispatcherSortOrder = (window.dispatcherSortOrder === 'newest') ? 'oldest' : 'newest';
+      renderDispatcher();
+    };
+
+    window.updateExpectedWeightPreview = function() {
+      const input = document.getElementById('disp-bags-input');
+      const preview = document.getElementById('disp-preview-weight');
+      const bags = parseInt(input.value, 10) || 0;
+      const expected = (bags * 62.5).toFixed(2);
+      if (preview) preview.textContent = Number(expected).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kg';
+    };
+
+    window.handleStartDispatcher = function(e) {
+      if (e) e.preventDefault();
+      const bagsInput = document.getElementById('disp-bags-input');
+      const bags = parseInt(bagsInput.value, 10);
+      if (isNaN(bags) || bags <= 0) {
+        showToast('Please enter a valid number of cocoa bags.');
+        return;
+      }
+
+      const expectedWeight = Math.round(bags * 62.5 * 100) / 100;
+      dispatcherProject = {
+        id: 'disp_' + Date.now(),
+        totalBags: bags,
+        weightPerBag: 62.5,
+        expectedWeight: expectedWeight,
+        rawEntries: [],
+        entries: []
+      };
+
+      localStorage.setItem('cocoa_dispatcher_project', JSON.stringify(dispatcherProject));
+      renderDispatcher();
+      showToast('Dispatcher initialized for ' + bags + ' bags (' + expectedWeight.toFixed(2) + ' kg limit).');
+      lucide.createIcons();
+    };
+
+    function recalculateDispEntries() {
+      if (!dispatcherProject) return;
+      let running = 0;
+      dispatcherProject.entries = dispatcherProject.rawEntries.map((raw, idx) => {
+        const ent = Math.round(raw.enteredWeight * 100) / 100;
+        const allowance = Math.max(0, Math.round((dispatcherProject.expectedWeight - running) * 100) / 100);
+        const act = Math.min(ent, allowance);
+        const isCap = ent > allowance;
+        running = Math.round((running + act) * 100) / 100;
+        const remAfter = Math.max(0, Math.round((dispatcherProject.expectedWeight - running) * 100) / 100);
+
+        return {
+          id: raw.id,
+          farmerIndex: idx + 1,
+          farmerName: 'Farmer ' + (idx + 1),
+          enteredWeight: ent,
+          actualWeight: act,
+          isCapped: isCap,
+          cumulativeWeight: running,
+          remainingWeight: remAfter
+        };
+      });
+
+      localStorage.setItem('cocoa_dispatcher_project', JSON.stringify(dispatcherProject));
+    }
+
+    window.handleAddFarmerWeight = function(e) {
+      if (e) e.preventDefault();
+      if (!dispatcherProject) return;
+
+      const currentTotal = dispatcherProject.entries.length > 0
+        ? dispatcherProject.entries[dispatcherProject.entries.length - 1].cumulativeWeight
+        : 0;
+      const allowance = Math.max(0, Math.round((dispatcherProject.expectedWeight - currentTotal) * 100) / 100);
+
+      if (allowance <= 0) {
+        showToast('Total expected weight reached. Cannot add more weights.');
+        return;
+      }
+
+      const weightInput = document.getElementById('disp-weight-input');
+      const val = Math.round(parseFloat(weightInput.value) * 100) / 100;
+
+      if (isNaN(val) || val <= 0) {
+        showToast('Please enter a valid weight (up to 2 decimals).');
+        return;
+      }
+
+      const willCap = val > allowance;
+      const newIndex = dispatcherProject.entries.length + 1;
+
+      dispatcherProject.rawEntries.push({
+        id: 'disp_raw_' + Date.now(),
+        enteredWeight: val,
+        timestamp: new Date().toISOString()
+      });
+
+      recalculateDispEntries();
+
+      weightInput.value = '';
+      const previewNote = document.getElementById('disp-weight-preview-note');
+      if (previewNote) previewNote.classList.add('hidden');
+
+      renderDispatcher();
+
+      if (willCap) {
+        showToast('Farmer ' + newIndex + ' capped at ' + allowance.toFixed(2) + ' kg. Limit reached!');
+      } else {
+        showToast('Farmer ' + newIndex + ' weight of ' + val.toFixed(2) + ' kg added.');
+      }
+      lucide.createIcons();
+    };
+
+    window.handleWeightInputPreview = function() {
+      if (!dispatcherProject) return;
+      const weightInput = document.getElementById('disp-weight-input');
+      const previewNote = document.getElementById('disp-weight-preview-note');
+      if (!weightInput || !previewNote) return;
+
+      const val = parseFloat(weightInput.value);
+      if (isNaN(val) || val <= 0) {
+        previewNote.classList.add('hidden');
+        return;
+      }
+
+      const currentTotal = dispatcherProject.entries.length > 0
+        ? dispatcherProject.entries[dispatcherProject.entries.length - 1].cumulativeWeight
+        : 0;
+      const allowance = Math.max(0, Math.round((dispatcherProject.expectedWeight - currentTotal) * 100) / 100);
+
+      previewNote.classList.remove('hidden');
+      if (val > allowance) {
+        previewNote.className = 'p-2.5 sm:p-3 rounded-xl text-xs border bg-amber-50 border-amber-200 text-amber-900 font-medium';
+        previewNote.innerHTML = '<strong>Notice:</strong> Weight (' + val.toFixed(2) + ' kg) exceeds remaining allowance (' + allowance.toFixed(2) + ' kg). Will be <strong>capped at ' + allowance.toFixed(2) + ' kg</strong>, reaching total limit.';
+      } else {
+        previewNote.className = 'p-2.5 sm:p-3 rounded-xl text-xs border bg-emerald-50/50 border-emerald-200 text-emerald-900';
+        previewNote.innerHTML = 'Within allowance. Dispatched becomes: <strong>' + (currentTotal + val).toFixed(2) + ' kg</strong>. Remaining: <strong>' + (allowance - val).toFixed(2) + ' kg</strong>.';
+      }
+    };
+
+    window.deleteDispatcherEntry = function(id) {
+      if (!dispatcherProject) return;
+      dispatcherProject.rawEntries = dispatcherProject.rawEntries.filter(r => r.id !== id);
+      recalculateDispEntries();
+      renderDispatcher();
+      showToast('Farmer entry removed.');
+      lucide.createIcons();
+    };
+
+    window.resetDispatcher = function() {
+      dispatcherProject = null;
+      localStorage.removeItem('cocoa_dispatcher_project');
+      renderDispatcher();
+      showToast('Dispatcher session cleared.');
+      lucide.createIcons();
+    };
+
+    window.copyDispatcherTable = async function() {
+      if (!dispatcherProject || dispatcherProject.entries.length === 0) return;
+      let text = "Farmer Number\tEntered (kg)\tDispatched (kg)\tStatus\tCumulative (kg)\n";
+      dispatcherProject.entries.forEach(e => {
+        text += e.farmerName + "\t" + e.enteredWeight.toFixed(2) + " kg\t" + e.actualWeight.toFixed(2) + " kg\t" + (e.isCapped ? "Capped" : "Full") + "\t" + e.cumulativeWeight.toFixed(2) + " kg\n";
+      });
+      const tot = dispatcherProject.entries.length > 0 ? dispatcherProject.entries[dispatcherProject.entries.length - 1].cumulativeWeight : 0;
+      text += "TOTAL DISPATCHED:\t" + tot.toFixed(2) + " kg / " + dispatcherProject.expectedWeight.toFixed(2) + " kg";
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Dispatcher table copied to clipboard!');
+      } catch(err) {
+        showToast('Table copied to clipboard!');
+      }
+    };
+
+    window.downloadDispatcherCSV = function() {
+      if (!dispatcherProject || dispatcherProject.entries.length === 0) return;
+      let csv = "Farmer Number,Entered Weight (kg),Dispatched Weight (kg),Status,Cumulative Weight (kg),Remaining Weight (kg)\n";
+      dispatcherProject.entries.forEach(e => {
+        csv += e.farmerName + "," + e.enteredWeight.toFixed(2) + "," + e.actualWeight.toFixed(2) + "," + (e.isCapped ? "Capped" : "Full") + "," + e.cumulativeWeight.toFixed(2) + "," + e.remainingWeight.toFixed(2) + "\n";
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'cocoa_dispatcher_' + Date.now() + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Dispatcher CSV downloaded!');
+    };
+
+    function renderDispatcher() {
+      const setupContainer = document.getElementById('disp-setup-container');
+      const dashboard = document.getElementById('disp-dashboard');
+      const resetBtn = document.getElementById('disp-reset-btn');
+
+      if (!setupContainer || !dashboard) return;
+
+      if (!dispatcherProject) {
+        setupContainer.classList.remove('hidden');
+        dashboard.classList.add('hidden');
+        if (resetBtn) resetBtn.classList.add('hidden');
+        updateExpectedWeightPreview();
+        return;
+      }
+
+      setupContainer.classList.add('hidden');
+      dashboard.classList.remove('hidden');
+      if (resetBtn) resetBtn.classList.remove('hidden');
+
+      const expected = dispatcherProject.expectedWeight;
+      const totalDispatched = dispatcherProject.entries.length > 0
+        ? dispatcherProject.entries[dispatcherProject.entries.length - 1].cumulativeWeight
+        : 0;
+      const remaining = Math.max(0, Math.round((expected - totalDispatched) * 100) / 100);
+      const isComplete = remaining <= 0 && dispatcherProject.entries.length > 0;
+      const pct = expected > 0 ? Math.min(100, Math.round((totalDispatched / expected) * 100)) : 0;
+
+      // Update Top Large Cards
+      document.getElementById('disp-stat-expected').textContent = expected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kg';
+      document.getElementById('disp-stat-bags-sub').textContent = dispatcherProject.totalBags + ' bags × 62.5 kg';
+
+      document.getElementById('disp-stat-dispatched').textContent = totalDispatched.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kg';
+      document.getElementById('disp-stat-farmers-sub').textContent = dispatcherProject.entries.length + ' farmers logged';
+
+      const remCard = document.getElementById('disp-stat-rem-card');
+      const remTitle = document.getElementById('disp-stat-rem-title');
+      const remVal = document.getElementById('disp-stat-remaining');
+      const remSub = document.getElementById('disp-stat-rem-sub');
+
+      if (isComplete) {
+        remCard.className = 'bg-emerald-50 p-3.5 sm:p-5 rounded-2xl border border-emerald-200 shadow-sm';
+        remTitle.textContent = 'Status';
+        remVal.className = 'text-xs sm:text-2xl font-black font-mono text-emerald-700 mt-0.5 truncate';
+        remVal.textContent = 'Capped / Full';
+        remSub.textContent = 'Limit strictly met';
+      } else {
+        remCard.className = 'bg-white p-3.5 sm:p-5 rounded-2xl border border-emerald-100 shadow-sm bg-emerald-50/20';
+        remTitle.textContent = 'Remaining';
+        remVal.className = 'text-xs sm:text-2xl font-black font-mono text-emerald-600 mt-0.5 truncate';
+        remVal.textContent = remaining.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kg';
+        remSub.textContent = 'Allowance to cap';
+      }
+
+      // Update Always-Visible Entry Form HUD (Expected, Dispatched, Remaining)
+      const hudExp = document.getElementById('disp-hud-expected');
+      const hudDisp = document.getElementById('disp-hud-dispatched');
+      const hudRem = document.getElementById('disp-hud-remaining');
+      if (hudExp) hudExp.textContent = expected.toFixed(2) + ' kg';
+      if (hudDisp) hudDisp.textContent = totalDispatched.toFixed(2) + ' kg';
+      if (hudRem) hudRem.textContent = isComplete ? '0.00 kg (Full)' : remaining.toFixed(2) + ' kg';
+
+      const sortText = document.getElementById('disp-sort-text');
+      if (sortText) sortText.textContent = (window.dispatcherSortOrder === 'newest') ? 'Newest First' : 'Oldest First (#1-#N)';
+
+      document.getElementById('disp-progress-text').textContent = totalDispatched.toFixed(2) + ' / ' + expected.toFixed(2) + ' kg (' + pct + '%)';
+      const fillBar = document.getElementById('disp-progress-fill');
+      fillBar.style.width = pct + '%';
+      fillBar.className = isComplete ? 'bg-amber-500 h-full transition-all duration-300' : 'bg-emerald-600 h-full transition-all duration-300';
+
+      const banner = document.getElementById('disp-completed-banner');
+      const addContainer = document.getElementById('disp-add-container');
+      if (isComplete) {
+        banner.classList.remove('hidden');
+        document.getElementById('disp-completed-cap').textContent = expected.toFixed(2) + ' kg';
+        addContainer.classList.add('hidden');
+      } else {
+        banner.classList.add('hidden');
+        addContainer.classList.remove('hidden');
+        document.getElementById('disp-farmer-label').textContent = 'Weight for Farmer #' + (dispatcherProject.entries.length + 1) + ' (kg) *';
+      }
+
+      // Render table
+      const emptyTable = document.getElementById('disp-empty-table');
+      const tableWrapper = document.getElementById('disp-table-wrapper');
+      const tableActions = document.getElementById('disp-table-actions');
+
+      if (dispatcherProject.entries.length === 0) {
+        emptyTable.classList.remove('hidden');
+        tableWrapper.classList.add('hidden');
+        tableActions.classList.add('hidden');
+        tableActions.classList.remove('flex');
+      } else {
+        emptyTable.classList.add('hidden');
+        tableWrapper.classList.remove('hidden');
+        tableActions.classList.remove('hidden');
+        tableActions.classList.add('flex');
+
+        const entriesToRender = (window.dispatcherSortOrder === 'newest')
+          ? [...dispatcherProject.entries].reverse()
+          : dispatcherProject.entries;
+
+        let rows = '';
+        entriesToRender.forEach((e, idx) => {
+          const isLatest = (window.dispatcherSortOrder === 'newest' && idx === 0);
+          rows += '<tr class="hover:bg-slate-50 transition-colors ' + (idx % 2 === 1 ? 'bg-slate-50/40' : '') + '">' +
+            '<td class="py-3.5 px-4 font-mono text-slate-400 text-xs">' + e.farmerIndex + '</td>' +
+            '<td class="py-3.5 px-4 font-bold text-slate-900">' +
+              '<span class="inline-flex items-center gap-1.5 flex-wrap">' +
+                '<span class="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-bold">' + e.farmerIndex + '</span>' +
+                '<span>' + e.farmerName + '</span>' +
+                (isLatest ? '<span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded uppercase">Latest</span>' : '') +
+              '</span>' +
+            '</td>' +
+            '<td class="py-3.5 px-4 text-right font-mono text-slate-600 text-xs">' + e.enteredWeight.toFixed(2) + ' kg</td>' +
+            '<td class="py-3.5 px-4 text-right font-mono font-bold">' +
+              '<span class="' + (e.isCapped ? 'text-amber-600' : 'text-slate-900') + '">' + e.actualWeight.toFixed(2) + ' kg</span>' +
+              (e.isCapped ? '<span class="block text-[9px] font-bold text-amber-500 uppercase">Capped at Limit</span>' : '') +
+            '</td>' +
+            '<td class="py-3.5 px-4 text-right font-mono font-semibold text-slate-700">' + e.cumulativeWeight.toFixed(2) + ' kg</td>' +
+            '<td class="py-3.5 px-4 text-right font-mono text-slate-500 text-xs">' + e.remainingWeight.toFixed(2) + ' kg</td>' +
+            '<td class="py-3.5 px-4 text-center">' +
+              '<button onclick="deleteDispatcherEntry(\'' + e.id + '\')" class="text-slate-400 hover:text-rose-600 cursor-pointer p-1" title="Delete entry">' +
+                '<i data-lucide="trash" class="w-4 h-4"></i>' +
+              '</button>' +
+            '</td>' +
+          '</tr>';
+        });
+
+        document.getElementById('disp-tbody').innerHTML = rows;
+        document.getElementById('disp-foot-farmers').textContent = dispatcherProject.entries.length + ' Farmers';
+        const totalEntered = dispatcherProject.entries.reduce((s, e) => s + e.enteredWeight, 0);
+        document.getElementById('disp-foot-entered').textContent = totalEntered.toFixed(2) + ' kg';
+        document.getElementById('disp-foot-dispatched').textContent = totalDispatched.toFixed(2) + ' kg';
+        document.getElementById('disp-foot-cap').textContent = 'Cap: ' + expected.toFixed(2) + ' kg';
+      }
+
+      lucide.createIcons();
+    }
+
+    function showToast(msg) {
+      let toast = document.getElementById('toast-notification');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast-notification';
+        toast.className = 'fixed top-5 right-5 z-50 bg-slate-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg transition-all duration-300 flex items-center gap-2';
+        document.body.appendChild(toast);
+      }
+      toast.innerHTML = '<span>' + msg + '</span>';
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        if (toast) toast.classList.add('hidden');
+      }, 3000);
+    }
 
     window.lockApp = function() {
-      document.getElementById('auth-overlay').classList.remove('hidden');
+      sessionStorage.removeItem('isAuthenticated');
+      authOverlay.classList.remove('hidden');
+      const passEl = document.getElementById('login-password');
+      if (passEl) passEl.value = '';
+      lucide.createIcons();
     };
+    
+    // ==========================================
+    // AUTHENTICATION LOGIC (INJECTED)
+    // ==========================================
+    const authOverlay = document.getElementById('auth-overlay');
+    const loginForm = document.getElementById('login-form');
+    const loginError = document.getElementById('login-error');
 
-    document.getElementById('login-form').addEventListener('submit', function(e) {
+    // Check if user is already authenticated in this session
+    if (sessionStorage.getItem('isAuthenticated') === 'true') {
+      authOverlay.classList.add('hidden');
+    }
+
+    // Handle login attempt
+    loginForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      document.getElementById('auth-overlay').classList.add('hidden');
+      
+      const enteredUser = document.getElementById('login-username').value.trim().toLowerCase();
+      const enteredPass = document.getElementById('login-password').value;
+
+      if (enteredUser === 'graphical_joe' && enteredPass === 'P@ssw0rd') {
+        sessionStorage.setItem('isAuthenticated', 'true');
+        authOverlay.classList.add('hidden');
+        loginError.classList.add('hidden');
+      } else {
+        loginError.classList.remove('hidden');
+      }
     });
+
+    // Initialize application on load
+    renderApp();
+    lucide.createIcons();
   </script>
 </body>
 </html>
